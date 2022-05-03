@@ -21,7 +21,6 @@ namespace NSUWatcher.DBUtils
 			try
 			{
 				mysqlcmd.Dispose();			
-				mysql.Close();
 				mysql.Dispose();			
 			}
 			finally

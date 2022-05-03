@@ -2,7 +2,9 @@
 {
 	public static class PartsConsts
 	{
-		public const int MAX_NAME_LENGTH = 31;//32 position for Zero in c++
+        public const byte INVALID_CONFIG_POS = 0xFF;
+
+        public const int MAX_NAME_LENGTH = 31;//32 position for Zero in c++
 		public const int MAX_TEMP_SENSORS = 64;
 		public const int MAX_SWITCHES = 16;
 		public const int MAX_TEMP_TRIGGERS = 16;
@@ -27,10 +29,13 @@
 		KTypes,
 		WaterBoilers,
 		WoodBoilers,
+        SystemFan,
 		Vacation,
 		Scenarios,
 		FileUploader,
-        UserCommand
+        UserCommand,
+        BinUploader,
+        Console
 	}
 }
 

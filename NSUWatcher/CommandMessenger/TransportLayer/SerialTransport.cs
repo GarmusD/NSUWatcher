@@ -46,7 +46,7 @@ namespace CommandMessenger.TransportLayer
         private Thread _serialReader; //Serial reader thread - needed because SerialPort.ReadByte() is blocking method
         private byte[] _buffer; //internal serial buffer
         private volatile int _buffcount = 0; //bytes count in buffer;
-        private Object _buffLocker = new Object();
+        private object _buffLocker = new object();
         // DGS end
         private ThreadRunStates _threadRunState;
         private readonly object _threadRunStateLock = new object();
@@ -167,9 +167,10 @@ namespace CommandMessenger.TransportLayer
                 _currentSerialSettings.Parity,
                 _currentSerialSettings.DataBits,
                 _currentSerialSettings.StopBits)
-                {
-                    DtrEnable = _currentSerialSettings.DtrEnable
-                };
+            {
+                DtrEnable = _currentSerialSettings.DtrEnable,
+                RtsEnable = _currentSerialSettings.RtsEnable
+            };
 
 
             // Subscribe to event and open serial port for data

@@ -55,14 +55,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public TempSensor FindSensor(byte[] saddr)
         {
-            for (int i = 0; i < Sensors.Count; i++)
+            if (!IsAddrValid(saddr)) return null;
+            foreach (var item in Sensors)
             {
-                sensor = (TempSensor)Sensors[i];
-                if (sensor != null && sensor.CompareAddr(saddr))
-                {
-                    return sensor;
-                }
-            }
+                if (item.CompareAddr(saddr))
+                    return item;
+            }            
             return null;
         }
 
@@ -248,14 +246,14 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             return result;
         }
 
-        private int GetFirstFreeConfigID()
+        private byte GetFirstFreeConfigID()
         {
             for (int i = 0; i < ConfigIDs.Count; i++)
             {
                 if (!ConfigIDs.Get(i))
-                    return i;
+                    return (byte)i;
             }
-            return -1;
+            return NSUPartBase.INVALID_VALUE;
         }
 
         private void UpdateConfigIDs()
@@ -263,7 +261,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             for (int i = 0; i < Sensors.Count; i++)
             {
                 sensor = (TempSensor)Sensors[i];
-                if (sensor.ConfigPos != -1)
+                if (sensor.ConfigPos != NSUPartBase.INVALID_VALUE)
                 {
                     ConfigIDs.Set(sensor.ConfigPos, true);
                 }
@@ -271,10 +269,10 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             for (int i = 0; i < Sensors.Count; i++)
             {
                 sensor = (TempSensor)Sensors[i];
-                if (sensor.ConfigPos == -1)
+                if (sensor.ConfigPos == NSUPartBase.INVALID_VALUE && !TempSensor.IsAddressNull(sensor))
                 {
-                    int free_id = GetFirstFreeConfigID();
-                    if (free_id != -1)
+                    byte free_id = GetFirstFreeConfigID();
+                    if (free_id != NSUPartBase.INVALID_VALUE)
                     {
                         NSULog.Error(LogTag, "Sensor with invalid config_pos found - " + TempSensor.AddrToString(sensor.SensorID));
                         sensor.ConfigPos = free_id;
@@ -318,6 +316,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     var ts = FindSensor(TempSensor.StringToAddr((string)data[JKeys.TempSensor.SensorID]));
                     if (ts != null)
                     {
+                        ts.ReadErrors = data.Property(JKeys.TempSensor.ReadErrors) != null ? (int)data[JKeys.TempSensor.ReadErrors] : 0;
                         ts.Temperature = (float)data[JKeys.Generic.Value];
                     }
                     break;
@@ -338,26 +337,38 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         {
                             case JKeys.TempSensor.ContentSystem:
                                 ts = new TempSensor();
-                                ts.SensorID = TempSensor.StringToAddr((string)data[JKeys.TempSensor.SensorID]);
-                                ts.Temperature = (float)data[JKeys.TempSensor.Temperature];
+                                ts.SensorID = TempSensor.StringToAddr(JSonValueOrDefault(data, JKeys.TempSensor.SensorID, TempSensor.NullAddress));
+                                ts.Temperature = JSonValueOrDefault(data, JKeys.TempSensor.Temperature, 0.0f);
+                                ts.ReadErrors = JSonValueOrDefault(data, JKeys.TempSensor.ReadErrors, 0);
                                 ts.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
                                 Sensors.Add(ts);
                                 break;
                             case JKeys.TempSensor.ContentConfig:
-                                ts = FindSensor(TempSensor.StringToAddr((string)data[JKeys.TempSensor.SensorID]));
-                                if (ts != null)
+                                ts = FindSensor(TempSensor.StringToAddr((string)data[JKeys.TempSensor.SensorID]));//NullAddress sensors is filtered here
+                                if (ts == null)
                                 {
-                                    ts.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
-                                    ts.Name = (string)data[JKeys.Generic.Name];
-                                    ts.Interval = (int)data[JKeys.TempSensor.Interval];
-                                    ts.NotFound = false;
-                                    //ts.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
-                                    //Add sensor events
-                                    ts.OnEnabledChanged += TS_EnabledChanged;
-                                    ts.OnIntervalChanged += TS_IntervalChanged;
-                                    ts.OnNameChanged += TS_NameChanged;
-                                    ts.OnTempChanged += TS_TempChanged;
+                                    ts = new TempSensor();
+                                    ts.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));                                    
+                                    if(!TempSensor.IsAddressNull(ts))
+                                        ts.NotFound = true;
+                                    Sensors.Add(ts);
                                 }
+                                else
+                                {
+                                    ts.NotFound = false;
+                                }
+                                ts.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, NSUPartBase.INVALID_VALUE);
+                                ts.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
+                                ts.SensorID = TempSensor.StringToAddr(JSonValueOrDefault(data, JKeys.TempSensor.SensorID, TempSensor.NullAddress));
+                                ts.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+                                ts.Interval = JSonValueOrDefault(data, JKeys.TempSensor.Interval, 0);
+                                    
+                                //Add sensor events
+                                ts.OnEnabledChanged += TS_EnabledChanged;
+                                ts.OnIntervalChanged += TS_IntervalChanged;
+                                ts.OnNameChanged += TS_NameChanged;
+                                ts.OnTempChanged += TS_TempChanged;
+
                                 break;
                         }
                     }
@@ -365,28 +376,28 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        private void TS_TempChanged(TempSensor sender, float temp)
+        private void TS_TempChanged(object sender, TempChangedEventArgs e)
         {
             //SetTemperatureDB(sender, temp);
             var vs = new JObject();
             vs.Add(JKeys.Generic.Target, JKeys.TempSensor.TargetName);
             vs.Add(JKeys.Generic.Action, JKeys.Action.Info);
-            vs.Add(JKeys.TempSensor.SensorID, TempSensor.AddrToString(sender.SensorID));
-            vs.Add(JKeys.Generic.Value, temp);
+            vs.Add(JKeys.TempSensor.SensorID, TempSensor.AddrToString((sender as TempSensor).SensorID));
+            vs.Add(JKeys.Generic.Value, e.Temperature);
             SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), vs);
         }
 
-        private void TS_NameChanged(TempSensor sender, string oldname, string newname)
+        private void TS_NameChanged(object sender, NameChangedEventArgs e)
         {
 
         }
 
-        private void TS_IntervalChanged(TempSensor sender, int interval)
+        private void TS_IntervalChanged(object sender, IntervalChangedEventArgs e)
         {
 
         }
 
-        private void TS_EnabledChanged(TempSensor sender, bool enabled)
+        private void TS_EnabledChanged(object sender, EnabledChangedEventArgs e)
         {
 
         }

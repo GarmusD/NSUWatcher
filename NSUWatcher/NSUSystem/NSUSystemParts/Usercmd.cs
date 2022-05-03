@@ -3,6 +3,7 @@ using NSUWatcher.NSUWatcherNet;
 using Newtonsoft.Json.Linq;
 using NSU.Shared;
 using System;
+using System.Collections.Generic;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -20,14 +21,35 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void ProccessArduinoData(JObject data)
         {
+            NSULog.Debug(LogTag, $"ProccessArduinoData(JObject data:{data.ToString()})");
             if (data.Property(JKeys.Generic.Value) != null)
             {
                 string cmd = (string)data[JKeys.Generic.Value];
-                if (cmd.StartsWith("freeze", System.StringComparison.InvariantCultureIgnoreCase))
+
+                if (cmd.StartsWith("reboot", System.StringComparison.InvariantCultureIgnoreCase))
                 {
-                    NSULog.Debug(LogTag, "Freezing Arduino...");
-                    cmd = (string)data[JKeys.Generic.Value];
-                    SendToArduino(cmd);
+                    var args = new List<string>(cmd.Split(' '));
+                    if (args.Count == 1)
+                    {
+                        args.Add("hard");
+                    }
+
+                    if(args[1].Trim().Equals("hard"))
+                    {
+                        NSULog.Debug(LogTag, "Rebooting Arduino using comm DTR...");
+                        //nsusys.cmdCenter.Stop();
+                        //nsusys.cmdCenter.Start(true);
+                        nsusys.cmdCenter.SendDTRSignal();
+                    }
+                    else if (args[1].Trim().Equals("soft"))
+                    {
+                        NSULog.Debug(LogTag, "Rebooting Arduino (software loop)...");
+                        JObject jo = new JObject();
+                        jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
+                        jo[JKeys.Generic.Action] = JKeys.Syscmd.RebootSystem;
+                        jo[JKeys.Generic.Value] = "soft";
+                        SendToArduino(jo);
+                    }
                     return;
                 }
 
@@ -90,6 +112,67 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         catch (Exception ex)
                         {
                             NSULog.Error("UserCMD", ex.Message);
+                        }
+                    }
+                    return;
+                }
+
+                if(cmd.StartsWith(JKeys.RelayModule.TargetName, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    string[] parts = cmd.Split(' ');
+                    if(parts.Length == 3)
+                    {
+                        JObject jo = new JObject();
+                        jo[JKeys.Generic.Target] = JKeys.RelayModule.TargetName;
+                        if(parts[1].Equals("open", StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            jo[JKeys.Generic.Action] = JKeys.RelayModule.ActionOpenChannel;
+                        }
+                        else if(parts[1].Equals("close", StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            jo[JKeys.Generic.Action] = JKeys.RelayModule.ActionCloseChannel;
+                        }
+                        else
+                        {
+                            NSULog.Error(LogTag, $"Invalid command: {cmd}");
+                        }
+                        byte b;
+                        if(byte.TryParse(parts[2], out b))
+                        {
+                            jo[JKeys.Generic.Value] = b;
+                            SendToArduino(jo);
+                        }
+                    }
+                    else
+                    {
+                        NSULog.Error(LogTag, $"Invalid command: {cmd}");
+                    }
+                    return;
+                }
+
+                if(cmd.StartsWith(JKeys.TempSensor.TargetName, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    string[] parts = cmd.Split(' ');
+                    if (parts.Length > 2)
+                    {
+                        if (parts[1].Equals("simulate", StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            if (parts.Length == 4)
+                            {
+                                JObject jo = new JObject();
+                                jo[JKeys.Generic.Target] = JKeys.TempSensor.TargetName;
+                                jo[JKeys.Generic.Action] = "simulate";
+                                jo[JKeys.Generic.Name] = parts[2];
+                                if (float.TryParse(parts[3], out float val))
+                                {
+                                    jo[JKeys.Generic.Value] = val;
+                                    SendToArduino(jo);
+                                }
+                            }
+                            else
+                            {
+                                NSULog.Error(LogTag, $"Invalid command: {cmd}");
+                            }
                         }
                     }
                     return;

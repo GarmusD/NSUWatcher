@@ -12,7 +12,6 @@ namespace NSUWatcher.NSUWatcherNet
         private float totalRatio;
 
         private long uSizeSession;
-        private bool partialMode;
         private int clntCount;
 
         public long LastUncompressed
@@ -51,14 +50,12 @@ namespace NSUWatcher.NSUWatcherNet
             totalCompressed = 0;
             totalRatio = 0.0f;
             packetsSentCount = 0;
-            partialMode = false;
         }
 
         public void BeginSession(long uncomressedSize)
         {
             uSizeSession = uncomressedSize;
             lastUncompressed = uSizeSession;
-            partialMode = false;
             clntCount = 0;
         }
 
@@ -66,16 +63,6 @@ namespace NSUWatcher.NSUWatcherNet
         {
             totalUncompressed += uSizeSession * clntCount;
             totalRatio = (float)((float)totalCompressed / (float)totalUncompressed) * 100.0f;
-        }
-
-        public void BeginPartialMode()
-        {
-            partialMode = true;
-        }
-
-        public void EndPartialMode()
-        {
-            partialMode = false;
         }
 
         public void AddPerClient(int cmprL)

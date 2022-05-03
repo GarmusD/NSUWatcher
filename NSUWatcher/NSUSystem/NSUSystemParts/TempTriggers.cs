@@ -116,10 +116,10 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     if(data.Property(JKeys.Generic.Result) == null)
                     {
                         trg = new TempTrigger();
-                        trg.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
-                        trg.Name = (string)data[JKeys.Generic.Name];
-                        trg.Enabled = true;
-                        trg.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Generic.Status], Status.UNKNOWN);
+                        trg.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, TempTrigger.INVALID_VALUE);
+                        trg.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+                        trg.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
+                        
                         JArray ja = (JArray)data[JKeys.TempTrigger.Pieces];
                         for (int i=0; i < TempTrigger.MAX_TEMPTRIGGERPIECES; i++)
                         {
@@ -130,6 +130,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                             trg[i].Temperature = (float)jo[JKeys.TempTrigger.TriggerTemperature];
                             trg[i].Histeresis = (float)jo[JKeys.TempTrigger.TriggerHisteresis];
                         }
+                        if(JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
+                                trg.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Generic.Status, string.Empty), Status.UNKNOWN);
+
                         trg.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TempTriggers));
                         trg.OnStatusChanged += Trg_OnStatusChanged;
                         triggers.Add(trg);
@@ -149,7 +152,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     trg = FindTrigger((string)data[JKeys.Generic.Name]);
                     if(trg != null)
                     {
-                        trg.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Generic.Status], Status.UNKNOWN);
+                        trg.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Generic.Status, string.Empty), Status.UNKNOWN);
                     }
                     break;
             }

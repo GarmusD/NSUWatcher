@@ -148,10 +148,11 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     if (data.Property(JKeys.Generic.Result) == null)
                     {
                         var ktp = new KType();
-                        ktp.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
-                        ktp.Name = (string)data[JKeys.Generic.Name];
-                        ktp.Interval = (int)data[JKeys.KType.Interval];
-                        if (data.Property(JKeys.Generic.Value) != null)
+                        ktp.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, KType.INVALID_VALUE);
+                        ktp.Enabled = JSonValueOrDefault(data, JKeys.Generic.Enabled, false);
+                        ktp.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+                        ktp.Interval = JSonValueOrDefault(data, JKeys.KType.Interval, 0);
+                        if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
                         {
                             ktp.Temperature = Convert.ToInt32((float)data[JKeys.Generic.Value]);
                         }
@@ -174,14 +175,14 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        private void Ktp_TempChanged(KType sender, int temp)
+        private void Ktp_TempChanged(object sender, KTypeTempChangedEventArgs e)
         {
             //InsertTemperature(sender.DBId, (float)temp);
             var vs = new JObject();
             vs.Add(JKeys.Generic.Target, JKeys.KType.TargetName);
             vs.Add(JKeys.Generic.Action, JKeys.Action.Info);
-            vs.Add(JKeys.Generic.Name, sender.Name);
-            vs.Add(JKeys.Generic.Value, temp);
+            vs.Add(JKeys.Generic.Name, (sender as KType).Name);
+            vs.Add(JKeys.Generic.Value, e.Temperature);
             SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), vs);
         }
 

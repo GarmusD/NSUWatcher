@@ -27,6 +27,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private Switch FindSwitch(string name)
         {
+            if (string.IsNullOrWhiteSpace(name)) return null;
             for (int i = 0; i < switches.Count; i++)
             {
                 var swth = (Switch)switches[i];
@@ -38,6 +39,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private Switch FindSwitch(byte cfg_pos)
         {
+            if (cfg_pos == Switch.INVALID_VALUE) return null;
             for (int i = 0; i < switches.Count; i++)
             {
                 var swth = (Switch)switches[i];
@@ -104,48 +106,60 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void ProccessArduinoData(JObject data)
         {
-            string act = (string)data[JKeys.Generic.Action];
-            switch(act)
+            try
             {
-                case JKeys.Syscmd.Snapshot:
-                    if(data.Property(JKeys.Generic.Result) == null)
-                    {
-                        sw = new Switch();
-                        sw.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
-                        sw.Name = (string)data[JKeys.Generic.Name];                        
-                        sw.Dependancy = (string)data[JKeys.Switch.Dependancy];
-                        sw.OnDependancyStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Switch.OnDependancyStatus], Status.UNKNOWN);
-                        sw.ForceStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Switch.ForceStatus], Status.UNKNOWN);
-                        sw.IsForced = Convert.ToBoolean((string)data[JKeys.Switch.IsForced]);
-                        sw.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Switch.CurrState], Status.UNKNOWN);
-                        
-                        sw.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.Switches));
-                        sw.OnStatusChanged += Switch_OnStatusChanged;
-                        sw.OnClicked += Switch_OnClicked;
-                        switches.Add(sw);
-                    }
-                    else
-                    {
-                        if (((string)data[JKeys.Generic.Result]).Equals(JKeys.Result.Done))
+                string act = (string)data[JKeys.Generic.Action];
+                switch (act)
+                {
+                    case JKeys.Syscmd.Snapshot:
+                        if (data.Property(JKeys.Generic.Result) == null)
                         {
-                            foreach (var item in switches)
+                            sw = new Switch();
+                            sw.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, NSUPartBase.INVALID_VALUE);
+                            sw.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
+                            sw.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+                            sw.Dependancy = JSonValueOrDefault(data, JKeys.Switch.Dependancy, string.Empty);
+                            sw.OnDependancyStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Switch.OnDependancyStatus, string.Empty), Status.UNKNOWN);
+                            sw.ForceStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Switch.ForceStatus, string.Empty), Status.UNKNOWN);
+
+                            if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
                             {
-                                item.DbId = GetDBID(item.Name);
-                                //update status
-                                InsertStatusValue(sw.DbId, (int)sw.Status);
+                                sw.IsForced = JSonValueOrDefault(data, JKeys.Switch.IsForced, false);
+                                sw.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Switch.CurrState, string.Empty), Status.UNKNOWN);
+                            }
+
+                            sw.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.Switches));
+                            sw.OnStatusChanged += Switch_OnStatusChanged;
+                            sw.OnClicked += Switch_OnClicked;
+                            switches.Add(sw);
+                        }
+                        else
+                        {
+                            if (((string)data[JKeys.Generic.Result]).Equals(JKeys.Result.Done))
+                            {
+                                foreach (var item in switches)
+                                {
+                                    item.DbId = GetDBID(item.Name);
+                                    //update status
+                                    InsertStatusValue(sw.DbId, (int)sw.Status);
+                                }
                             }
                         }
-                    }
-                    break;
-                case JKeys.Action.Info:
-                    sw = FindSwitch((string)data[JKeys.Generic.Name]);
-                    if(sw != null)
-                    {
-                        //Set isForced first because of OnStatusChange event, which sends unchecked isForced
-                        sw.IsForced = Convert.ToBoolean((string)data[JKeys.Switch.IsForced]);
-                        sw.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Generic.Status], Status.UNKNOWN);
-                    }
-                    break;
+                        break;
+                    case JKeys.Action.Info:
+                        sw = FindSwitch((string)data[JKeys.Generic.Name]);
+                        if (sw != null)
+                        {
+                            //Set isForced first because of OnStatusChange event, which sends unchecked isForced
+                            sw.IsForced = (bool)data[JKeys.Switch.IsForced];
+                            sw.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Generic.Status], Status.UNKNOWN);
+                        }
+                        break;
+                }
+            }
+            catch(Exception e)
+            {
+                NSULog.Exception(LogTag, e.Message + "\r\n" + e.StackTrace.ToString());
             }
         }
 
@@ -202,25 +216,25 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             switches.Clear();
         }
 
-        private void Switch_OnStatusChanged(Switch sender, Status status, bool isForced)
+        private void Switch_OnStatusChanged(object sender, SwitchStatusChangedEventArgs e)
         {
-            InsertStatusValue(sender.DbId, (int)status);
+            InsertStatusValue((sender as Switch).DbId, (int)e.Status);
             var jo = new JObject();
             jo[JKeys.Generic.Target] = JKeys.Switch.TargetName;
             jo[JKeys.Generic.Action] = JKeys.Action.Info;
-            jo[JKeys.Generic.Name] = sender.Name;
-            jo[JKeys.Generic.Status] = status.ToString();
-            jo[JKeys.Switch.IsForced] = isForced;
+            jo[JKeys.Generic.Name] = (sender as Switch).Name;
+            jo[JKeys.Generic.Status] = e.Status.ToString();
+            jo[JKeys.Switch.IsForced] = e.IsForced;
             SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
         }
 
-        private void Switch_OnClicked(Switch sender)
+        private void Switch_OnClicked(object sender, EventArgs e)
         {
-            NSULog.Debug(LogTag, $"Switch_OnClicked(). Name: {sender.Name}. Sending to Arduino.");
+            NSULog.Debug(LogTag, $"Switch_OnClicked(). Name: {(sender as Switch).Name}. Sending to Arduino.");
             var vs = new JObject();
             vs.Add(JKeys.Generic.Target, JKeys.Switch.TargetName);
             vs.Add(JKeys.Generic.Action, JKeys.Action.Click);
-            vs.Add(JKeys.Generic.Name, sender.Name);
+            vs.Add(JKeys.Generic.Name, (sender as Switch).Name);
             SendToArduino(vs);
         }
     }

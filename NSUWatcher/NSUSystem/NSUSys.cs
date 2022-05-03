@@ -21,7 +21,7 @@ namespace NSUWatcher.NSUSystem
     public class NSUSys
     {
 
-        readonly string LogTag = "NSUSys";        
+        readonly string LogTag = "NSUSys";
 
         public const int VERSION_MAJOR = 0;
         public const int VERSION_MINOR = 4;
@@ -44,18 +44,16 @@ namespace NSUWatcher.NSUSystem
 
         public object MySQLLock = new object();
 
-        private CmdCenter cmdCenter;
-        private NetServer server = null;
+        public CmdCenter cmdCenter;
+        public NetServer NetServer { get; private set; } = null;
         private DBUtility dbUtility = null;
         private NSUSysPartInfo sysPart;
-
 
         private System.Timers.Timer minuteTimer = new System.Timers.Timer(1000 * 60);
         private System.Timers.Timer secondTimer = new System.Timers.Timer(1000);
         private int oldMin;
 
         private NSUSysPartInfo nsupart;
-        private List<NSUSysPartInfo> nsuparts;
         private bool isReady = false;
 
         public bool IsReady
@@ -63,33 +61,37 @@ namespace NSUWatcher.NSUSystem
             get { return isReady; }
         }
 
-        public List<NSUSysPartInfo> NSUParts
+        public MCUStatus ArduinoStatus
         {
-            get { return nsuparts; }
+            get { return ardStatus; }
+            set
+            {
+                if (ardStatus != value)
+                {
+                    ardStatus = value;
+                }
+            }
         }
+        private MCUStatus ardStatus = MCUStatus.Off;
 
-        public NSUXMLConfig XMLConfig
-        {
-            get { return nsuconfig; }
-        }
-        NSUXMLConfig nsuconfig = null;
+        public List<NSUSysPartInfo> NSUParts { get; }
 
-        public NSUUsers Users
-        {
-            get { return nsuUsers; }
-        }
-        private NSUUsers nsuUsers;
+        public NSUXMLConfig XMLConfig { get; } = null;
+
+        public NSUUsers Users { get; }
 
         public PushNotifications PushNotifications
         {
             get; internal set;
         }
 
+        public TimeHelper SystemTime { get; }
+
         public NSUSys()
         {
-            nsuconfig = new NSUXMLConfig();
-            nsuconfig.FileName = Path.Combine(Config.Instance().NSUXMLConfigFilePath, Config.Instance().NSUXMLConfigFile);
-            
+            XMLConfig = new NSUXMLConfig();
+            XMLConfig.FileName = Path.Combine(Config.Instance().NSUWritablePath, Config.Instance().NSUXMLSnapshotFile);
+
             string connectionString =
                 "Server=localhost;" +
                 "Database=NSU;" +
@@ -97,19 +99,25 @@ namespace NSUWatcher.NSUSystem
                 "Password=p3m2uNXg;" +
                 "Pooling=false";
 
-            cmdCenter = cmdcntr;
+            cmdCenter = new CmdCenter();
 
             dbUtility = new DBUtility(connectionString);
 
-            nsuUsers = new NSUUsers(dbUtility);
+            Users = new NSUUsers(dbUtility);
 
-            nsuparts = CreateParts();
+            NSULog.Debug(LogTag, "Starting NetServer.");
+            NetServer = new NetServer();
+            NetServer.ClientConnected += HandleClientConnected;
+            NetServer.ClientDisconnected += HandleClientDisconnected;
+            NetServer.OnDataReceived += NetworkDataReceivedHandler;
+
             //SYSCMD
             sysPart = new NSUSysPartInfo();
             sysPart.PartType = PartsTypes.System;
             sysPart.Part = new Syscmd(this, sysPart.PartType);
             sysPart.AcceptableCmds = sysPart.Part.RegisterTargets();
-            nsuparts.Add(sysPart);
+            NSUParts = new List<NSUSysPartInfo>();
+            CreateParts();
 
             cmdCenter.OnArduinoCrashed += OnArduinoCrashed;
             cmdCenter.OnCmdCenterStarted += OnCmdCenterStarted;
@@ -118,30 +126,56 @@ namespace NSUWatcher.NSUSystem
             minuteTimer.Elapsed += MinuteTimer_Elapsed;
             minuteTimer.AutoReset = true;
             secondTimer.Elapsed += SecondTimer_Elapsed;
-            oldMin = DateTime.Now.Minute;
-            secondTimer.Enabled = true;
 
             PushNotifications = new PushNotifications();
+            SystemTime = new TimeHelper();
+            SystemTime.TimeChanged += SystemTimeChanged;
+            SystemTime.Start();
+            
+            NetServer.Start();
+
+        }
+
+        private void SystemTimeChanged(object sender, EventArgs e)
+        {
+            CalibrateMinuteStart();
+            //ReSet Arduino Time
+            var vs = new JObject();
+            vs.Add(JKeys.Generic.Target, JKeys.Syscmd.TargetName);
+            vs.Add(JKeys.Generic.Action, JKeys.Syscmd.TimeChanged);
+            OnArduinoDataReceived(vs);
+        }
+
+        public bool Start()
+        {
+            CalibrateMinuteStart();
+            return cmdCenter.Start();
+        }
+
+        private void CalibrateMinuteStart()
+        {
+            oldMin = DateTime.Now.Minute;
+            secondTimer.Enabled = true;
         }
 
         private void SecondTimer_Elapsed(object sender, ElapsedEventArgs e)
-        {            
-            if(oldMin != DateTime.Now.Minute)
+        {
+            if (oldMin != DateTime.Now.Minute)
             {
                 oldMin = DateTime.Now.Minute;
                 minuteTimer.Enabled = true;
                 MinuteTimer_Elapsed(null, null);
                 secondTimer.Enabled = false;
-            }            
+            }
         }
 
         private void MinuteTimer_Elapsed(object sender, ElapsedEventArgs e)
-        {            
-            if(DateTime.Now.Minute % LOG_EVERY_MINUTES == 0)
+        {
+            if (DateTime.Now.Minute % LOG_EVERY_MINUTES == 0)
             {
                 var vs = new JObject();
                 vs.Add(JKeys.Generic.Action, JKeys.Timer.ActionTimer);
-                foreach(var item in nsuparts)
+                foreach (var item in NSUParts)
                 {
                     item.Part.ProccessArduinoData(vs);
                 }
@@ -182,134 +216,149 @@ namespace NSUWatcher.NSUSystem
         {
             //Inform all clients
             isReady = false;
-            NSULog.Debug(LogTag, "Stopping NetServer.");
+            NSULog.Debug(LogTag, "OnArduinoCrashed() Informing clients.");
             JObject jo = new JObject();
             jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
             jo[JKeys.Generic.Action] = JKeys.Action.Status;
             jo[JKeys.Generic.Value] = "reboot";
             SendToClient(NetClientRequirements.CreateStandart(), jo);
+
+            //Rebooting Arduino
+            NSULog.Debug(LogTag, "OnArduinoCrashed(): Rebooting Arduino using DTR.");
+            //cmdCenter.Stop();
+            //cmdCenter.Start(true);
+            cmdCenter.SendDTRSignal();
         }
 
 
         public void MakeReady()
         {
             isReady = true;
-            if (server == null)
-            {
-                NSULog.Debug(LogTag, "Starting NetServer.");
 
-                server = new NetServer();
-                server.ClientConnected += HandleClientConnected;
-                server.ClientDisconnected += HandleClientDisconnected;
-                server.OnDataReceived += NetworkDataReceivedHandler;
-                server.Start();
-            }
             //Inform all clients
             JObject jo = new JObject();
             jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
             jo[JKeys.Generic.Action] = JKeys.Action.Status;
-            jo[JKeys.Generic.Value] = "ready";
+            jo[JKeys.Generic.Value] = JKeys.SystemAction.Ready;
             SendToClient(NetClientRequirements.CreateStandart(), jo);
         }
 
-        List<NSUSysPartInfo> CreateParts()
+        private void CreateParts()
         {
-            List<NSUSysPartInfo> parts = new List<NSUSysPartInfo>();
             NSUSysPartInfo part;
+
+            //SystemCmd
+            NSUParts.Add(sysPart);
 
             //TSensors
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.TSensors;
             part.Part = new TempSensors(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //Switches
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.Switches;
             part.Part = new Switches(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //Relays
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.RelayModules;
             part.Part = new RelayModules(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //TempTriggers
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.TempTriggers;
             part.Part = new TempTriggers(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //CircPumps
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.CircPumps;
             part.Part = new CircPumps(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //Collectors
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.Collectors;
             part.Part = new Collectors(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //ComfortZones
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.ComfortZones;
             part.Part = new ComfortZones(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //KTypes
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.KTypes;
             part.Part = new KTypes(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //WaterBoiler
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.WaterBoilers;
             part.Part = new WaterBoilers(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
 
             //Katilas
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.WoodBoilers;
             part.Part = new WoodBoilers(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
+            NSUParts.Add(part);
+
+            //SystemFan
+            part = new NSUSysPartInfo();
+            part.PartType = PartsTypes.SystemFan;
+            part.Part = new SystemFans(this, part.PartType);
+            part.AcceptableCmds = part.Part.RegisterTargets();
+            NSUParts.Add(part);
 
             //UserCmd
             part = new NSUSysPartInfo();
             part.PartType = PartsTypes.UserCommand;
             part.Part = new Usercmd(this, part.PartType);
             part.AcceptableCmds = part.Part.RegisterTargets();
-            parts.Add(part);
-            return parts;
+            NSUParts.Add(part);
+
+            //BinUploader
+            part = new NSUSysPartInfo();
+            part.PartType = PartsTypes.BinUploader;
+            part.Part = new BinUploader(this, part.PartType);
+            part.AcceptableCmds = part.Part.RegisterTargets();
+            NSUParts.Add(part);
+
+            //Console
+            part = new NSUSysPartInfo();
+            part.PartType = PartsTypes.Console;
+            part.Part = new NSUSystemParts.Console(this, part.PartType);
+            part.AcceptableCmds = part.Part.RegisterTargets();
+            NSUParts.Add(part);
         }
 
         void ClearParts()
         {
             NSULog.Debug(LogTag, "Clearing existing NSU Parts...");
-            for (int i = 0; i < nsuparts.Count; i++)
-            {
-                nsuparts[i] = null;
-            }
-            nsuparts.Clear();
+            NSUParts.Clear();
         }
 
         string ReadCmdID(JObject jo)
         {
             var lastCmdID = string.Empty;
-            if(jo.Property(JKeys.Generic.CommandID) != null)
+            if (jo.Property(JKeys.Generic.CommandID) != null)
             {
                 lastCmdID = (string)jo[JKeys.Generic.CommandID];
             }
@@ -328,9 +377,9 @@ namespace NSUWatcher.NSUSystem
 
         public void SendToClient(NetClientRequirements req, JObject valueset, string msg = "")
         {
-            if (server != null)
+            if (NetServer != null && NetServer.Operational)
             {
-                server.SendString(req, valueset, msg);
+                NetServer.SendString(req, valueset, msg);
             }
         }
 
@@ -341,21 +390,20 @@ namespace NSUWatcher.NSUSystem
 
         private NSUSysPartInfo FindPart(PartsTypes parttype)
         {
-            for (int i = 0; i < nsuparts.Count; i++)
+            for (int i = 0; i < NSUParts.Count; i++)
             {
-                if (nsuparts[i].PartType == parttype)
-                    return nsuparts[i];
+                if (NSUParts[i].PartType == parttype)
+                    return NSUParts[i];
             }
             return null;
         }
 
         private NSUSysPartInfo FindPart(string cmd)
         {
-            for (int i = 0; i < nsuparts.Count; i++)
+            for (int i = 0; i < NSUParts.Count; i++)
             {
-                //for(int j=0; j < nsuparts[i].AcceptableCmds.Count; i++)
-                if (nsuparts[i].AcceptableCmds.Contains(cmd))
-                    return nsuparts[i];
+                if (NSUParts[i].AcceptableCmds.Contains(cmd))
+                    return NSUParts[i];
             }
             NSULog.Debug(LogTag, string.Format("Supported part for sub cmd {0} not found.", cmd));
             return null;
@@ -375,13 +423,23 @@ namespace NSUWatcher.NSUSystem
         public void Stop()
         {
             NSULog.Debug(LogTag, "NSUSystem.Stop()");
-            NSULog.Debug(LogTag, "Stoping NetServer.");
-            if (server != null)
+
+            SystemTime.Stop();
+
+            NSULog.Debug(LogTag, "Stoping NetServer...");
+            if (NetServer != null)
             {
-                server.Stop();
+                NetServer.Stop();
+                NetServer = null;
             }
-            NSULog.Debug(LogTag, "Closing database.");
+
+            NSULog.Debug(LogTag, "Stopping CmdCenter...");
+            cmdCenter.Dispose();
+            cmdCenter = null;
+
+            NSULog.Debug(LogTag, "Closing database...");
             dbUtility.Dispose();
+            NSULog.Debug(LogTag, "NSUSystem.Stopped.");
         }
 
         void SendServerInfoToClient(NetClientData clientData)
@@ -392,12 +450,12 @@ namespace NSUWatcher.NSUSystem
                 if (clientData != null)
                 {
                     string srvInfo = string.Format("NSUServer V{0}.{1} PROTOCOL {2}", VERSION_MAJOR, VERSION_MINOR, PROTOCOL_VERSION);
-                    server.SendString(NetClientRequirements.CreateStandartClientOnly(clientData), null, srvInfo, true);
+                    NetServer.SendString(NetClientRequirements.CreateStandartClientOnly(clientData), null, srvInfo, true);
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                NSULog.Exception(LogTag, "SendServerInfoToClient(): "+ex.Message);
+                NSULog.Exception(LogTag, "SendServerInfoToClient(): " + ex.Message);
             }
         }
 
@@ -415,7 +473,7 @@ namespace NSUWatcher.NSUSystem
                     jo[JKeys.ServerInfo.Version] = $"{VERSION_MAJOR}.{VERSION_MINOR}";
                     jo[JKeys.ServerInfo.Protocol] = PROTOCOL_VERSION;
                     jo = SetLastCmdID(clientData, jo);
-                    server.SendString(NetClientRequirements.CreateStandartClientOnly(clientData), jo, null, true);
+                    NetServer.SendString(NetClientRequirements.CreateStandartClientOnly(clientData), jo, null, true);
                 }
             }
             catch (Exception ex)
@@ -427,7 +485,7 @@ namespace NSUWatcher.NSUSystem
         //Network data handler
         void NetworkDataReceivedHandler(object sender, NetServer.DataReceivedArgs args)
         {
-            NSULog.Debug(LogTag, $"ProcessClientMessage(datatype = {args.datatype}).");
+            //NSULog.Debug(LogTag, $"ProcessClientMessage(datatype = {args.datatype}).");
             if (args.datatype == NetDataType.String)
             {
                 string cmd = args.GetAsString();
@@ -450,7 +508,7 @@ namespace NSUWatcher.NSUSystem
                             response.Add(JKeys.Generic.Message, "Unsupported message format. No target.");
                             if (netData.Property(JKeys.Generic.CommandID) != null)
                                 response.Add(JKeys.Generic.CommandID, netData[JKeys.Generic.CommandID]);
-                            server.SendString(NetClientRequirements.CreateStandartClientOnly(args.ClientData), response, "");
+                            NetServer.SendString(NetClientRequirements.CreateStandartClientOnly(args.ClientData), response, "");
                             return;
                         }
                         if (args.ClientData.ProtocolVersion == 1)
@@ -458,7 +516,7 @@ namespace NSUWatcher.NSUSystem
                             args.ClientData.ProtocolVersion = 2;
                         }
                         args.ClientData.CommandID = ReadCmdID(netData);
-                        NSULog.Debug(LogTag, "Looking for part " + (string)netData[JKeys.Generic.Target]);
+                        //NSULog.Debug(LogTag, "Looking for part " + (string)netData[JKeys.Generic.Target]);
                         nsupart = FindPart((string)netData[JKeys.Generic.Target]);
                         if (nsupart != null)
                         {
@@ -477,15 +535,15 @@ namespace NSUWatcher.NSUSystem
                         response.Add(JKeys.Generic.Result, JKeys.Result.Error);
                         response.Add(JKeys.Generic.ErrCode, "exception");
                         response.Add(JKeys.Generic.Message, exception.Message);
-                        server.SendString(NetClientRequirements.CreateStandartClientOnly(args.ClientData), response, "");
+                        NetServer.SendString(NetClientRequirements.CreateStandartClientOnly(args.ClientData), response, "");
                     }
                 }
                 else
                 {
                     NSULog.Debug(LogTag, "Unsupported protocol version. Disconnecting client.");
                     args.ClientData.ProtocolVersion = 1;
-                    server.SendString(NetClientRequirements.CreateStandartClientOnly(args.ClientData), null, "UNSUPPORTED PROTOCOL VERSION");
-                    server.DisconnectClient(args.ClientData);
+                    NetServer.SendString(NetClientRequirements.CreateStandartClientOnly(args.ClientData), null, "UNSUPPORTED PROTOCOL VERSION");
+                    NetServer.DisconnectClient(args.ClientData);
                 }
 
             }
@@ -505,6 +563,14 @@ namespace NSUWatcher.NSUSystem
             cmdCenter.SendToArduino(data, waitAck);
         }
 
+        public void ManualCommand(string cmd)
+        {
+            NSULog.Debug(LogTag, $"ManualCommand received: {cmd}");
+            var vs = new JObject();
+            vs.Add(JKeys.Generic.Target, JKeys.UserCmd.TargetName);
+            vs.Add(JKeys.Generic.Value, cmd);
+            OnArduinoDataReceived(vs);
+        }
     }
 }
 

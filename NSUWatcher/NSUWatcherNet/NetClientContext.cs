@@ -28,28 +28,22 @@ namespace NSUWatcher.NSUWatcherNet
         System.Timers.Timer respTimer;
         System.Timers.Timer pingTimer;
 
-        private NetClientData clientData;
-
         public delegate void DataReceivedEventHandler(NetClientData ClientData, InternalArgs args);
         public delegate void DisconnectedEventHandler(TcpClientHandler client);
         public event DataReceivedEventHandler OnDataReceived;
         public event DisconnectedEventHandler OnDisconnected;
 
-        public volatile bool marked = false;
         private volatile bool disconnected = false;
 
-        public NetClientData ClientData
-        {
-            get { return clientData; }
-        }
+        public NetClientData ClientData { get; }
 
         public TcpClientHandler(TcpClient _client, Guid _ID)
         {
             client = _client;
-            clientData = new NetClientData();
-            clientData.ProtocolVersion = 2;
-            clientData.ClientID = _ID;
-            clientData.ClientType = NetClientData.NetClientType.Unknow;
+            ClientData = new NetClientData();
+            ClientData.ProtocolVersion = 2;
+            ClientData.ClientID = _ID;
+            ClientData.ClientType = NetClientData.NetClientType.Unknow;
 
             idra = new InternalArgBuilder();
 
@@ -118,13 +112,13 @@ namespace NSUWatcher.NSUWatcherNet
                                     idra.Process(buffer, 0, count);
                                     while (idra.DataAvailable)
                                     {
-                                        RaiseDataReceived(clientData, idra.GetArgs());
+                                        RaiseDataReceived(ClientData, idra.GetArgs());
                                     }
                                 }
                             }
                             else
                             {
-                                NSULog.Debug(LogTag, "ListenerThread(). netStream Is NULL. Disconnecting...");
+                                NSULog.Debug(LogTag, "ListenerThread(). netStream Is NULL. Disconnecting...", true);
                                 break;
                             }
                         }
@@ -132,7 +126,7 @@ namespace NSUWatcher.NSUWatcherNet
                 }
                 catch (Exception ex)
                 {
-                    NSULog.Exception(LogTag, "ListenerThread()(Exception) - " + ex.Message);
+                    NSULog.Exception(LogTag, "ListenerThread()(Exception) - " + ex.Message, true);
                 }
                 if (netStream != null)
                 {
@@ -158,17 +152,16 @@ namespace NSUWatcher.NSUWatcherNet
                 }
                 else
                 {
-                    NSULog.Debug(LogTag, "SendBuffer() netStream is null or not writable.");
+                    NSULog.Debug(LogTag, "SendBuffer() netStream is null or not writable.", true);
                     DisconnectAndRaise();
                 }
             }
             catch (Exception e)
             {
                 //client disconnected?
-                NSULog.Exception(LogTag, "SendBuffer() exception. " + e.Message);
+                NSULog.Exception(LogTag, "SendBuffer() exception. " + e.Message, true);
                 DisconnectAndRaise();
             }
-            NSULog.Exception(LogTag, "SendBuffer() returning false.");
             return false;
         }
 
@@ -191,17 +184,17 @@ namespace NSUWatcher.NSUWatcherNet
 
         public void DisconnectAndRaise()
         {
-            //Mark as disconnected
-            marked = true;
-            NSULog.Debug(LogTag, "Client " + clientData.ClientID.ToString() + " marked as disconnected.");
+            if (disconnected) return;
+            NSULog.Debug(LogTag, "Disconnecting client " + ClientData.ClientID.ToString() + " and raising event.", true);
             Disconnect();
+            OnDisconnected?.Invoke(this);
         }
 
         public void Disconnect()
         {
             if (disconnected) return;
             disconnected = true;
-            NSULog.Debug(LogTag, "Disconnect()");
+            NSULog.Debug(LogTag, "Disconnect()", true);
             try
             {
                 pingTimer.Enabled = false;
@@ -218,12 +211,10 @@ namespace NSUWatcher.NSUWatcherNet
             {
                 pingTimer = null;
                 respTimer = null;
-                client = null;
                 netStream = null;
+                client = null;
             }
-            if (marked)
-                OnDisconnected?.Invoke(this);
-            NSULog.Debug(LogTag, "Disconnect() DONE.");
+            NSULog.Debug(LogTag, "Disconnect() DONE.", true);
         }
     }
 

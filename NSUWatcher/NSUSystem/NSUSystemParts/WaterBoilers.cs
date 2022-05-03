@@ -29,18 +29,18 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     if (data.Property(JKeys.Generic.Result) == null)
                     {
                         var wb = new WaterBoiler();
-                        wb.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
-                        wb.Name = (string)data[JKeys.Generic.Name];
-                        wb.TempSensorName = (string)data[JKeys.WaterBoiler.TempSensorName];
-                        wb.CircPumpName = (string)data[JKeys.WaterBoiler.CircPumpName];
-                        wb.TempTriggerName = (string)data[JKeys.WaterBoiler.TempTriggerName];
-                        wb.ElPowerChannel = (byte)data[JKeys.WaterBoiler.ElPowerChannel];
-                        JArray ja = (JArray)data[JKeys.WaterBoiler.PowerData];
+                        wb.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, WaterBoiler.INVALID_VALUE);
+                        wb.Enabled = JSonValueOrDefault(data, JKeys.Generic.Enabled, false);
+                        wb.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+                        wb.TempSensorName = JSonValueOrDefault(data, JKeys.WaterBoiler.TempSensorName, string.Empty);
+                        wb.CircPumpName = JSonValueOrDefault(data, JKeys.WaterBoiler.CircPumpName, string.Empty);
+                        wb.TempTriggerName = JSonValueOrDefault(data, JKeys.WaterBoiler.TempTriggerName, string.Empty);
+                        wb.ElHeatingChannel = JSonValueOrDefault(data, JKeys.WaterBoiler.ElPowerChannel, WaterBoiler.INVALID_VALUE);
 
-                        for (int j = 0; j < WaterBoiler.MAX_WATERBOILER_POWERDATA_COUNT; j++)
+                        JArray ja = (JArray)data[JKeys.WaterBoiler.PowerData];
+                        for (int j = 0; j < WaterBoiler.MAX_WATERBOILER_EL_HEATING_COUNT; j++)
                         {
                             JObject powerdata = (JObject)ja[j];
-                            wb[j].Enabled = Convert.ToBoolean(powerdata[JKeys.WaterBoiler.PDEnabled]);
                             wb[j].StartHour = Convert.ToByte(powerdata[JKeys.WaterBoiler.PDStartHour]);
                             wb[j].StartMin = Convert.ToByte(powerdata[JKeys.WaterBoiler.PDStartMin]);
                             wb[j].EndHour = Convert.ToByte(powerdata[JKeys.WaterBoiler.PDStopHour]);

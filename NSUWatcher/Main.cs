@@ -19,7 +19,7 @@ namespace NSUWatcher
             Thread.CurrentThread.CurrentCulture = culture;
             Thread.CurrentThread.CurrentUICulture = culture;            
 
-            if (args.Length > 0 && (args [0].Equals ("noservice") || args [0].Equals ("--noservice")))
+            if (args.Length > 0 && (args [0].Equals ("noservice") || args [0].Equals ("-noservice") || args[0].Equals("--noservice")))
             {
                 Console.WriteLine("Current Culture:    {0}",
                         Thread.CurrentThread.CurrentCulture);
@@ -28,11 +28,12 @@ namespace NSUWatcher
 
                 var cfg = Config.Instance ();
 
-                NSULog.Debug (LogTag, "Main(). Starting worker thread.");
+                NSULog.Debug (LogTag, "Main(). Starting NSU System.");
                 try
                 {
-                    var cmdCenter = new CmdCenter();
-                    if (cmdCenter.Start())
+                    var nsuSys = new NSUSystem.NSUSys();
+                    //var cmdCenter = new CmdCenter();
+                    if (nsuSys.Start())
                     {
                         bool done = false;
                         while (!done)
@@ -44,15 +45,15 @@ namespace NSUWatcher
                             }
                             else
                             {
-                                cmdCenter.ManualCommand(str);
+                                nsuSys.ManualCommand(str);
                             }
                         }
                         NSULog.Debug(LogTag, "Main(). Quit requested.");
-                        cmdCenter.Stop();
+                        nsuSys.Stop();
                     }
                     else
                     {
-                        Console.WriteLine("CmdCenter failed to start. Press any key to quit.");
+                        Console.WriteLine("NSUSystem failed to start. Press any key to quit.");
                         Console.Read();
                     }
                 }

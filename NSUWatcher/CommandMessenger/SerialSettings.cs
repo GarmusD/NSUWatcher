@@ -37,6 +37,7 @@ namespace CommandMessenger
         int[] _dataBitsCollection = new[] { 5, 6, 7, 8 };
         StopBits _stopBits = StopBits.One;
         private bool _dtrEnable = false;
+        private bool _rtsEnable = false;
 
         #region Properties
         /// <summary>
@@ -122,6 +123,21 @@ namespace CommandMessenger
                 if (_dtrEnable != value)
                 {
                     _dtrEnable = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Set Data Terminal Ready.
+        /// </summary>
+        public bool RtsEnable
+        {
+            get { return _rtsEnable; }
+            set
+            {
+                if (_rtsEnable != value)
+                {
+                    _rtsEnable = value;
                 }
             }
         }

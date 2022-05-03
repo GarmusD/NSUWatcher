@@ -129,7 +129,8 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         try
                         {
                             wb = new WoodBoiler();
-                            wb.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
+                            wb.ConfigPos = (byte)data[JKeys.Generic.ConfigPos];
+                            wb.Enabled = Convert.ToBoolean((byte)data[JKeys.Generic.Enabled]);
                             wb.Name = (string)data[JKeys.Generic.Name];
                             wb.WorkingTemp = (float)data[JKeys.WoodBoiler.WorkingTemp];
                             wb.Histeresis = (float)data[JKeys.WoodBoiler.Histeresis];
@@ -140,11 +141,14 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                             wb.LadomatTriggerName = (string)data[JKeys.WoodBoiler.LadomatTriggerName];
                             wb.LadomatTemp = (float)data[JKeys.WoodBoiler.LadomatWorkTemp];
 
-                            wb.CurrentTemp = (float)data[JKeys.WoodBoiler.CurrentTemp];
-                            wb.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.WoodBoiler.Status], WoodBoilerStatus.UNKNOWN);
-                            wb.LadomStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.WoodBoiler.LadomatStatus], LadomatStatus.UNKNOWN);
-                            wb.ExhaustFanStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.WoodBoiler.ExhaustFanStatus], ExhaustFanStatus.UNKNOWN);
-                            wb.TempStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.WoodBoiler.TemperatureStatus], WoodBoilerTempStatus.Stable);
+                            if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
+                            {
+                                wb.CurrentTemp = (float)data[JKeys.WoodBoiler.CurrentTemp];
+                                wb.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.WoodBoiler.Status], WoodBoilerStatus.UNKNOWN);
+                                wb.LadomStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.WoodBoiler.LadomatStatus], LadomatStatus.UNKNOWN);
+                                wb.ExhaustFanStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.WoodBoiler.ExhaustFanStatus], ExhaustFanStatus.UNKNOWN);
+                                wb.TempStatus = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.WoodBoiler.TemperatureStatus], WoodBoilerTempStatus.Stable);
+                            }
 
                             wb.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.WoodBoilers));
                             boilers.Add(wb);
@@ -289,7 +293,6 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             try
             {
-                JObject jo;
                 WoodBoiler wb = FindWoodBoiler((string)data[JKeys.Generic.Name]);
                 switch((string)data[JKeys.Generic.Action])
                 {

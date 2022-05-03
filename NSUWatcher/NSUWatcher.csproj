@@ -87,10 +87,11 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Security" />
     <Reference Include="System.ServiceProcess" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CommandMessenger\BinaryConverter.cs" />
@@ -127,20 +128,25 @@
     <Compile Include="Main.cs" />
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="NSUSystem\ArduinoCmdResponse.cs" />
+    <Compile Include="NSUSystem\MCUStatus.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\BinUploader.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\CircPumps.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\Collectors.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\ComfortZones.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\Console.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\Consts.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\KTypes.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\NSUSysPartsBase.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\RelayModules.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\Switches.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\Syscmd.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\SystemFans.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\TempSensors.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\TempTriggers.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\Usercmd.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\WaterBoilers.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\WoodBoilers.cs" />
+    <Compile Include="NSUSystem\TimeHelper.cs" />
     <Compile Include="NSUWatcherNet\NetClientContext.cs" />
     <Compile Include="NSUWatcherNet\NetStatistics.cs" />
     <Compile Include="NSUWatcherService.cs">
@@ -200,6 +206,9 @@
       <ProductName>Windows Installer 4.5</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="!linux\cron_job.txt" />
   </ItemGroup>
   <Import Project="..\..\Shared\Shared.projitems" Label="Shared" />
 </Project>

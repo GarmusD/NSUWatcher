@@ -1,0 +1,2 @@
+﻿sudo nano /etc/crontab
+@daily find '/var/logs/nsuwatcher*' -mtime +30 -type f -delete

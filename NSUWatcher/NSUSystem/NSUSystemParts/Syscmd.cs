@@ -29,8 +29,10 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     switch ((string)data[JKeys.Generic.Value])
                     {
                         case JKeys.Syscmd.SystemBooting:
+                            nsusys.ArduinoStatus = MCUStatus.Booting;
                             break;
                         case JKeys.Syscmd.ReadyPauseBoot:
+                            nsusys.ArduinoStatus = MCUStatus.BootPauseReady;
                             if(Config.Instance().ArduinoPauseBoot)
                             {
                                 //Clear pause boot flag for next boot
@@ -39,10 +41,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                             }
                             break;
                         case JKeys.Syscmd.SystemBootPaused:
+                            nsusys.ArduinoStatus = MCUStatus.BootPaused;
                             //Inform users about this state
                             break;
                         case JKeys.Syscmd.SystemRunning:
-                            SetClock();
+                            nsusys.ArduinoStatus = MCUStatus.Running;
+                            SetArduinoClock();
                             Thread.Sleep(2000);
                             ExecuteUserCommands();
                             Thread.Sleep(1500);
@@ -58,12 +62,22 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         {
                             if(item.PartType != PartsTypes.System)
                             {
-                                item.Part.ProccessArduinoData(data);
+                                try
+                                {
+                                    item.Part.ProccessArduinoData(data);
+                                }
+                                catch(Exception ex)
+                                {
+                                    NSULog.Debug(LogTag, item.PartType.ToString() + " Exception: " + ex);
+                                }
                             }
                         }
                         nsusys.XMLConfig.Save();
                         nsusys.MakeReady();
                     }
+                    break;
+                case JKeys.Syscmd.TimeChanged:
+                    SetArduinoClock();
                     break;
                 case JKeys.Generic.Error:
                     var value = (string)data[JKeys.Generic.Value];
@@ -99,21 +113,28 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }        
 
-        private void SetClock()
+        private void SetArduinoClock()
         {
-            var vs = new JObject();
-            vs.Add(JKeys.Generic.Target, JKeys.Syscmd.TargetName);
-            vs.Add(JKeys.Generic.Action, JKeys.Syscmd.SetTime);
-            
-            DateTime dt = DateTime.Now;
-            string cmd = string.Format("cmdsettime set_time {0} {1} {2} {3} {4} {5}", dt.Hour, dt.Minute, dt.Second, dt.Year, dt.Month, dt.Day);
-            vs.Add(JKeys.Syscmd.Year, dt.Year);
-            vs.Add(JKeys.Syscmd.Month, dt.Month);
-            vs.Add(JKeys.Syscmd.Day, dt.Day);
-            vs.Add(JKeys.Syscmd.Hour, dt.Hour);
-            vs.Add(JKeys.Syscmd.Minute, dt.Minute);
-            vs.Add(JKeys.Syscmd.Second, dt.Second);
-            SendToArduino(vs);
+            if (nsusys.SystemTime.TimeIsOk && nsusys.ArduinoStatus == MCUStatus.Running)
+            {
+                NSULog.Debug(LogTag, "Setting time for MCU...");
+                var vs = new JObject();
+                vs.Add(JKeys.Generic.Target, JKeys.Syscmd.TargetName);
+                vs.Add(JKeys.Generic.Action, JKeys.Syscmd.SetTime);
+
+                DateTime dt = DateTime.Now;
+                vs.Add(JKeys.Syscmd.Year, dt.Year);
+                vs.Add(JKeys.Syscmd.Month, dt.Month);
+                vs.Add(JKeys.Syscmd.Day, dt.Day);
+                vs.Add(JKeys.Syscmd.Hour, dt.Hour);
+                vs.Add(JKeys.Syscmd.Minute, dt.Minute);
+                vs.Add(JKeys.Syscmd.Second, dt.Second);
+                SendToArduino(vs);
+            }
+            else
+            {
+                NSULog.Debug(LogTag, $"Cant set time for MCU: [nsusys.SystemTime.TimeIsOk: {nsusys.SystemTime.TimeIsOk}, nsusys.ArduinoStatus: {nsusys.ArduinoStatus.ToString()}]");
+            }
         }
 
         private void ExecuteUserCommands()

@@ -14,6 +14,7 @@ using NSU.Shared;
 using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
 using NSU.Shared.NSUNet;
+using System.Net.NetworkInformation;
 
 namespace NSUWatcher.NSUWatcherNet
 {
@@ -24,6 +25,7 @@ namespace NSUWatcher.NSUWatcherNet
 
         readonly string LogTag = "NetServer";
 
+        private System.Timers.Timer netTimer;
 
         public class DataReceivedArgs : EventArgs
         {
@@ -61,14 +63,84 @@ namespace NSUWatcher.NSUWatcherNet
             }
         };
 
+        private class AdapterHelper
+        {
+            private readonly string LogTag = "AdapterHelper";
+
+            public event EventHandler OnAdapterAvailable;
+
+            private System.Timers.Timer timer;
+
+            public AdapterHelper()
+            {
+                timer = new System.Timers.Timer(5000);
+                timer.Elapsed += HelperTimer_Elapsed;
+                timer.AutoReset = true;
+            }
+
+            public void Stop()
+            {
+                timer.Enabled = false;
+                timer.Dispose();
+                timer = null;
+            }
+
+            public void WaitForAdapterReady()
+            {
+                if(!IsNetworkAdapterReady())
+                {
+                    timer.Enabled = true;
+                }
+                else
+                {
+                    timer.Enabled = false;
+                    OnAdapterAvailable?.Invoke(this, null);
+                }
+            }
+
+            private void HelperTimer_Elapsed(object sender, ElapsedEventArgs e)
+            {
+                if(IsNetworkAdapterReady())
+                {
+                    timer.Enabled = false;
+                    OnAdapterAvailable?.Invoke(this, null);
+                }
+            }
+
+            private bool IsNetworkAdapterReady()
+            {
+                return System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable();
+
+                NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
+                if (nics == null || nics.Length < 1)
+                {
+                    NSULog.Debug(LogTag, "No network interfaces found.");
+                    return false;
+                }
+                foreach (NetworkInterface adapter in nics)
+                {
+                    IPInterfaceProperties properties = adapter.GetIPProperties();
+                    if (adapter.Supports(NetworkInterfaceComponent.IPv4) &&
+                        adapter.OperationalStatus == OperationalStatus.Up &&
+                        (adapter.NetworkInterfaceType == NetworkInterfaceType.Ethernet || adapter.NetworkInterfaceType == NetworkInterfaceType.Wireless80211))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+
         readonly Statistics statistics = new Statistics();
 
         TcpListener server;
         List<TcpClientHandler> clients;
         SynchronizationContext Context;
+        AdapterHelper ahelper;
         object slock;
         volatile bool stop_request;
         private bool runClientsCleanUp;
+        private Queue<JObject> CmdQueue = new Queue<JObject>();
 
         public delegate void ClientConnectedEventHandler(NetClientData clientData);
         public delegate void ClientDisconnectedEventHandler(NetClientData clientData);
@@ -77,26 +149,27 @@ namespace NSUWatcher.NSUWatcherNet
         public event ClientDisconnectedEventHandler ClientDisconnected;
         public event EventHandler<DataReceivedArgs> OnDataReceived = delegate { };
 
+        public bool Operational { get; private set; } = false;
+
         public NetServer()
         {
             Context = SynchronizationContext.Current;
             clients = new List<TcpClientHandler>();
-            server = new TcpListener(IPAddress.Any, 5152);
+            server = new TcpListener(IPAddress.Any, 5152);// ;(IPAddress.Parse("192.168.0.111"), 5152)
             server.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             slock = new object();
+            ahelper = new AdapterHelper();
+            ahelper.OnAdapterAvailable += OnAdapterAvailable;            
         }
 
-        public async void Start()
+        private void OnAdapterAvailable(object sender, EventArgs e)
         {
-            while (!stop_request)
-            {
-                var res = await ListeningThread();
-                if (res && !stop_request)
-                {
-                    NSULog.Debug(LogTag, "Start(). await ListeningThread() returned error. Restarting listener.");
-                    clients.Clear();
-                }
-            }
+            StartServerListening();
+        }
+
+        public void Start()
+        {
+            ahelper.WaitForAdapterReady();
         }
 
         public void Stop()
@@ -104,6 +177,9 @@ namespace NSUWatcher.NSUWatcherNet
             NSULog.Debug(LogTag, "Stop()");
             NSULog.Debug(LogTag, "Stopping server...");
             stop_request = true;
+            Operational = false;
+            ahelper.Stop();
+            ahelper = null;
             server.Stop();
             NSULog.Debug(LogTag, "Disconnecting clients...");
             foreach (var item in clients)
@@ -116,6 +192,19 @@ namespace NSUWatcher.NSUWatcherNet
             NSULog.Debug(LogTag, "NetServer stopped.");
         }
 
+        private async void StartServerListening()
+        {
+            while (!stop_request)
+            {
+                var res = await ListeningThread();
+                if (res && !stop_request)
+                {
+                    NSULog.Debug(LogTag, "Start(). await ListeningThread() returned error. Restarting listener.");
+                    clients.Clear();
+                }
+            }
+        }
+
         private Task<bool> ListeningThread()
         {
             NSULog.Debug(LogTag, "Starting listener thread...");
@@ -125,6 +214,8 @@ namespace NSUWatcher.NSUWatcherNet
                 try
                 {
                     server.Start();
+                    Operational = true;
+                    NSULog.Debug(LogTag, "NetServer started. Waiting for clients...");
                     while (!stop_request)
                     {
                         try
@@ -159,6 +250,7 @@ namespace NSUWatcher.NSUWatcherNet
                 {
                     server.Stop();
                     server = null;
+                    Operational = false;
                 }
                 return res;
             });
@@ -209,12 +301,8 @@ namespace NSUWatcher.NSUWatcherNet
                     string str = args.data as string;
                     if (str != null && !string.IsNullOrWhiteSpace(str))
                     {
-                        NSULog.Debug(LogTag, "Internal NetServer.ch_DataReceived(" + str + ")");
-                        var evt = OnDataReceived;
-                        if (evt != null)
-                        {
-                            OnDataReceived(this, new DataReceivedArgs(clientData, str));
-                        }
+                        //NSULog.Debug(LogTag, "Internal NetServer.ch_DataReceived(" + str + ")");
+                        OnDataReceived?.Invoke(this, new DataReceivedArgs(clientData, str));
                     }
                     break;
                 case NetDataType.CompressedString:
@@ -226,6 +314,7 @@ namespace NSUWatcher.NSUWatcherNet
 
         private void ClientOnDisconnected(TcpClientHandler client)
         {
+            NSULog.Debug(LogTag, $"ClientOnDisconnected(TcpClientHandler client - {client.ClientData.ClientID})");
             if (stop_request) return;
             if (Monitor.IsEntered(slock))
                 runClientsCleanUp = true;
@@ -240,6 +329,7 @@ namespace NSUWatcher.NSUWatcherNet
 
         private void CleanUpClients()
         {
+            NSULog.Debug(LogTag, "CleanUpClients()", true);
             lock (slock)
             {
                 while (true)
@@ -258,16 +348,18 @@ namespace NSUWatcher.NSUWatcherNet
                         break;
                 }
             }
-            NSULog.Debug(LogTag, "CleanUpClients() DONE. Clients left: " + clients.Count.ToString());
+            NSULog.Debug(LogTag, "CleanUpClients() DONE. Clients left: " + clients.Count.ToString(), true);
         }
 
         public void DisconnectClient(NetClientData clientData)
         {
+            NSULog.Debug(LogTag, $"DisconnectClient(NetClientData clientData - {clientData.ClientID})", true);
             if (clientData != null)
             {
                 TcpClientHandler ch = GetByID(clientData.ClientID);
                 if (ch != null)
                 {
+                    NSULog.Debug(LogTag, $"DisconnectClient(NetClientData clientData - {clientData.ClientID}):DisconnectClient(ch)", true);
                     DisconnectClient(ch);
                 }
             }
@@ -275,19 +367,19 @@ namespace NSUWatcher.NSUWatcherNet
 
         private void DisconnectClient(TcpClientHandler ch)
         {
+            NSULog.Debug(LogTag, "DisconnectClient(TcpClientHandler ch)", true);
             if (ch != null)
             {
-                ch.Disconnect();
-                lock (slock)
-                {
-                    clients.Remove(ch);
-                }
+                if(ch.Connected)
+                    ch.Disconnect();
+                NSULog.Debug(LogTag, "DisconnectClient(TcpClientHandler ch):clients.Remove(ch)", true);
+                clients.Remove(ch);
                 ch = null;
-                NSULog.Debug(LogTag, string.Format("Disconnection done. Clients left: {0}", clients.Count));
+                NSULog.Debug(LogTag, string.Format("Disconnection done. Clients left: {0}", clients.Count), true);
             }
             else
             {
-                NSULog.Debug(LogTag, "DisconnectClient() ClientHandler is NULL");
+                NSULog.Debug(LogTag, "DisconnectClient() ClientHandler is NULL", true);
             }
         }
 
@@ -308,6 +400,11 @@ namespace NSUWatcher.NSUWatcherNet
             return result;
         }
 
+        public void AddCommand(JObject jo)
+        {
+            CmdQueue.Enqueue(jo);
+        }
+
         public void SendString(NetClientRequirements req, JObject data, string msg, bool activateTimer = false)
         {
             if (clients.Count > 0)
@@ -321,7 +418,7 @@ namespace NSUWatcher.NSUWatcherNet
                 {
                     jstr = JsonConvert.SerializeObject(data);
                     jstrl = jstr.Length * sizeof(char);
-                    NSULog.Debug(LogTag, "Preparing JSon to NetClient: " + jstr);
+                    //NSULog.Debug(LogTag, "Preparing JSon to NetClient: " + jstr);
                     var compressed = StringCompressor.Zip(jstr);
                     using (MemoryStream ms = new MemoryStream())
                     {
@@ -340,16 +437,16 @@ namespace NSUWatcher.NSUWatcherNet
                     }
                     else //Make parts and send
                     {
-                        statistics.BeginPartialMode();
+                        //statistics.BeginPartialMode();
 
                         var startBuff = cbuff;
                         var startL = startBuff.Length;
                         var parts = startBuff.Length / MAX_SEND_BUFFER_SIZE;
                         if ((startBuff.Length % MAX_SEND_BUFFER_SIZE) > 0)
                             parts++;
-                        NSULog.Debug(LogTag, $"Sending partial buffers... Parts count = {parts}");
+                        //NSULog.Debug(LogTag, $"Sending partial buffers... Parts count = {parts}");
                         int i = 0;
-                        NSULog.Debug(LogTag, $"Sending part init");
+                        //NSULog.Debug(LogTag, $"Sending part init");
                         using (MemoryStream ms = new MemoryStream())
                         {
                             ms.WriteByte((byte)NetDataType.PartialInit);
@@ -362,13 +459,13 @@ namespace NSUWatcher.NSUWatcherNet
 
                         while (i < parts)
                         {
-                            NSULog.Debug(LogTag, $"Sending part {i}");
+                            //NSULog.Debug(LogTag, $"Sending part {i}");
                             using (MemoryStream ms = new MemoryStream())
                             {
                                 var startPos = i * MAX_SEND_BUFFER_SIZE;
                                 var leftL = startL - startPos;
                                 leftL = leftL > MAX_SEND_BUFFER_SIZE ? MAX_SEND_BUFFER_SIZE : leftL;
-                                NSULog.Debug(LogTag, $"Bytes left in part: {leftL}");
+                                //NSULog.Debug(LogTag, $"Bytes left in part: {leftL}");
                                 ms.WriteByte((byte)NetDataType.Partial);
                                 ms.Write(BitConverter.GetBytes(leftL), 0, sizeof(int));
                                 ms.Write(startBuff, i * MAX_SEND_BUFFER_SIZE, leftL);
@@ -378,7 +475,7 @@ namespace NSUWatcher.NSUWatcherNet
                             }
                             i++;
                         }
-                        NSULog.Debug(LogTag, $"Sending part done");
+                        //NSULog.Debug(LogTag, $"Sending part done");
                         using (MemoryStream ms = new MemoryStream())
                         {
                             ms.WriteByte((byte)NetDataType.PartialDone);
@@ -388,15 +485,15 @@ namespace NSUWatcher.NSUWatcherNet
                             cbuff = ms.ToArray();
                             DoSend(req, activateTimer, cbuff, buff);
                         }
-                        NSULog.Debug(LogTag, "Sending partial buffers DONE.");
-                        statistics.EndPartialMode();
+                        //NSULog.Debug(LogTag, "Sending partial buffers DONE.");
+                        //statistics.EndPartialMode();
                     }
                     statistics.EndSession();
-                    NSULog.Debug(LogTag, "Total statistic: " + statistics.ToString());
+                    //NSULog.Debug(LogTag, "Total statistic: " + statistics.ToString());
                 }
                 if (!string.IsNullOrWhiteSpace(msg))
                 {
-                    NSULog.Debug(LogTag, "Preparing PlainText to NetClient: " + msg);
+                    //NSULog.Debug(LogTag, "Preparing PlainText to NetClient: " + msg);
                     var b = Encoding.ASCII.GetBytes(msg);
                     using (MemoryStream ms = new MemoryStream())
                     {
@@ -409,7 +506,7 @@ namespace NSUWatcher.NSUWatcherNet
                     statistics.BeginSession(buff.Length);
                     DoSend(req, activateTimer, cbuff, buff);
                     statistics.EndSession();
-                    NSULog.Debug(LogTag, "Total statistic: " + statistics.ToString());
+                    //NSULog.Debug(LogTag, "Total statistic: " + statistics.ToString());
                 }
                 if (runClientsCleanUp)
                 {
@@ -421,10 +518,11 @@ namespace NSUWatcher.NSUWatcherNet
 
         private void DoSend(NetClientRequirements req, bool activateTimer, byte[] cbuff, byte[] buff)
         {
-            var tmpClients = clients;
+            //var tmpClients = clients;
+            //NSULog.Debug(LogTag, "DoSend()", true);
             lock (slock)
             {
-                foreach (TcpClientHandler clnt in tmpClients)
+                foreach (TcpClientHandler clnt in clients)
                 {
                     try
                     {
@@ -437,7 +535,7 @@ namespace NSUWatcher.NSUWatcherNet
                                     case 1:
                                         if (buff != null)
                                         {
-                                            NSULog.Debug(LogTag, "Sending PlainText to " + clnt.ClientData.ClientID.ToString());
+                                            //NSULog.Debug(LogTag, "Sending PlainText to " + clnt.ClientData.ClientID.ToString());
                                             if(clnt.SendBuffer(buff, 0, buff.Length, activateTimer))
                                             {
                                                 statistics.AddPerClient(buff.Length);
@@ -447,10 +545,16 @@ namespace NSUWatcher.NSUWatcherNet
                                     case 2:
                                         if (cbuff != null)
                                         {
-                                            NSULog.Debug(LogTag, "Sending JSon to " + clnt.ClientData.ClientID.ToString());
+                                            //NSULog.Debug(LogTag, "DoSend():clnt.SendBuffer(): Sending JSon to " + clnt.ClientData.ClientID.ToString(), true);
                                             if (clnt.SendBuffer(cbuff, 0, cbuff.Length, activateTimer))
                                             {
+                                                //NSULog.Debug(LogTag, "DoSend():clnt.SendBuffer(): Sending JSon OK.", true);
                                                 statistics.AddPerClient(cbuff.Length);
+                                            }
+                                            else
+                                            {
+                                                NSULog.Debug(LogTag, "DoSend():clnt.SendBuffer() returned false. Disconnecting client.", true);
+                                                clnt.Disconnect();
                                             }
                                         }
                                         break;
@@ -460,7 +564,7 @@ namespace NSUWatcher.NSUWatcherNet
                     }
                     catch (Exception ex)
                     {
-                        NSULog.Exception(LogTag, "SendString() - " + ex.Message);
+                        NSULog.Exception(LogTag, "SendString() - " + ex.Message, true);
                         clnt.Disconnect();
                     }
                 }

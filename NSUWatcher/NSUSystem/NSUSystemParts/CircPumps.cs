@@ -28,6 +28,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
 		public CircPump FindCircPump(string name)
         {
+            if (string.IsNullOrWhiteSpace(name)) return null;
             for (int i = 0; i < circpumps.Count; i++)
             {
                 CircPump cpc = circpumps[i];
@@ -41,6 +42,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
 		public CircPump FindCircPump(int cfg_pos)
 		{
+            if (cfg_pos == CircPump.INVALID_VALUE) return null;
 			for (int i = 0; i < circpumps.Count; i++)
 			{
 				CircPump cpc = circpumps[i];
@@ -202,26 +204,26 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        private void CP_OnClicked(CircPump sender)
+        private void CP_OnClicked(object sender, EventArgs e)
         {
-            NSULog.Debug(LogTag, $"CP_OnClicked(). Name: {sender.Name}. Sending to Arduino.");
+            NSULog.Debug(LogTag, $"CP_OnClicked(). Name: {(sender as CircPump).Name}. Sending to Arduino.");
             var vs = new JObject();
             vs.Add(JKeys.Generic.Target, JKeys.CircPump.TargetName);
             vs.Add(JKeys.Generic.Action, JKeys.CircPump.ActionClick);
-            vs.Add(JKeys.Generic.Name, sender.Name);
+            vs.Add(JKeys.Generic.Name, (sender as CircPump).Name);
             SendToArduino(vs);
         }
 
-        private void CP_OnStatusChanged(CircPump sender, Status status)
+        private void CP_OnStatusChanged(object sender, StatusChangedEventArgs e)
         {
-            InsertStatusValue(sender.DbId, status);
+            InsertStatusValue((sender as CircPump).DbId, e.Status);
             var vs = new JObject();
             vs.Add(JKeys.Generic.Target, JKeys.CircPump.TargetName);
             vs.Add(JKeys.Generic.Action, JKeys.Action.Info);
-            vs.Add(JKeys.Generic.Name, sender.Name);
-            vs.Add(JKeys.Generic.Status, sender.Status.ToString());
-            vs.Add(JKeys.CircPump.CurrentSpeed, sender.CurrentSpeed.ToString());
-            vs.Add(JKeys.CircPump.ValvesOpened, sender.OpenedValvesCount.ToString());
+            vs.Add(JKeys.Generic.Name, (sender as CircPump).Name);
+            vs.Add(JKeys.Generic.Status, (sender as CircPump).Status.ToString());
+            vs.Add(JKeys.CircPump.CurrentSpeed, (sender as CircPump).CurrentSpeed.ToString());
+            vs.Add(JKeys.CircPump.ValvesOpened, (sender as CircPump).OpenedValvesCount.ToString());
             SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), vs);
         }
 
@@ -236,22 +238,20 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         if (data.Property(JKeys.Generic.Result) == null)
                         {
                             cp = new CircPump();
-                            cp.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
-                            cp.Name = (string)data[JKeys.Generic.Name];
-                            cp.Channel = (byte)data[JKeys.CircPump.Channel];
-                            cp.MaxSpeed = (byte)data[JKeys.CircPump.MaxSpeed];
-                            cp.Name = (string)data[JKeys.Generic.Name];
-                            cp.Spd1Channel = (byte)data[JKeys.CircPump.Speed1Ch];
-                            cp.Spd2Channel = (byte)data[JKeys.CircPump.Speed2Ch];
-                            cp.Spd3Channel = (byte)data[JKeys.CircPump.Speed3Ch];
-                            cp.TempTriggerName = (string)data[JKeys.CircPump.TempTriggerName];
-
-                            string content = (string)data[JKeys.Generic.Content];
-                            if (content.Equals(JKeys.Content.ConfigPlus))
+                            cp.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, NSUPartBase.INVALID_VALUE);
+                            cp.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
+                            cp.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+                            cp.MaxSpeed = JSonValueOrDefault(data, JKeys.CircPump.MaxSpeed, NSUPartBase.INVALID_VALUE);
+                            cp.Spd1Channel = JSonValueOrDefault(data, JKeys.CircPump.Speed1Ch, NSUPartBase.INVALID_VALUE);
+                            cp.Spd2Channel = JSonValueOrDefault(data, JKeys.CircPump.Speed2Ch, CircPump.INVALID_VALUE);
+                            cp.Spd3Channel = JSonValueOrDefault(data, JKeys.CircPump.Speed3Ch, CircPump.INVALID_VALUE);
+                            cp.TempTriggerName = JSonValueOrDefault(data, JKeys.CircPump.TempTriggerName, string.Empty);
+                            
+                            if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
                             {
-                                cp.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Generic.Status], Status.UNKNOWN);
-                                cp.CurrentSpeed = (byte)data[JKeys.CircPump.CurrentSpeed];
-                                cp.OpenedValvesCount = (byte)data[JKeys.CircPump.ValvesOpened];
+                                cp.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Generic.Status, string.Empty), Status.UNKNOWN);
+                                cp.CurrentSpeed = JSonValueOrDefault(data, JKeys.CircPump.CurrentSpeed, (byte)0);
+                                cp.OpenedValvesCount = JSonValueOrDefault(data, JKeys.CircPump.ValvesOpened, (byte)0);
                             }
                             cp.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.CirculationPumps));
                             circpumps.Add(cp);
@@ -274,9 +274,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         cp = FindCircPump((string)data[JKeys.Generic.Name]);
                         if(cp != null)
                         {
-                            cp.CurrentSpeed = (byte)data[JKeys.CircPump.CurrentSpeed];
-                            cp.OpenedValvesCount = (byte)data[JKeys.CircPump.ValvesOpened];
-                            cp.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString((string)data[JKeys.Generic.Status], Status.UNKNOWN);
+                            cp.CurrentSpeed = JSonValueOrDefault(data, JKeys.CircPump.CurrentSpeed, (byte)0);
+                            cp.OpenedValvesCount = JSonValueOrDefault(data, JKeys.CircPump.ValvesOpened, (byte)0);
+                            cp.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Generic.Status, string.Empty), Status.UNKNOWN);
                         }
                         return;
                 }

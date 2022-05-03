@@ -51,17 +51,21 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     if (data.Property(JKeys.Generic.Result) == null)
                     {
                         Collector cl = new Collector();
-                        cl.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
-                        cl.Name = (string)data[JKeys.Generic.Name];
-                        cl.CircPumpName = (string)data[JKeys.Collector.CircPumpName];
-                        cl.ValveCount = (byte)data[JKeys.Collector.ValveCount];
+                        cl.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, Collector.INVALID_VALUE);
+                        cl.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
+                        cl.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+                        cl.CircPumpName = JSonValueOrDefault(data, JKeys.Collector.CircPumpName, string.Empty);
+                        cl.ActuatorsCount = JSonValueOrDefault(data, JKeys.Collector.ActuatorsCount, (byte)0);
+
                         var ja = (JArray)data[JKeys.Collector.Valves];
-                        for(int i=0; i < cl.ValveCount; i++)
+                        string content = JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config);
+                        for(int i=0; i < cl.ActuatorsCount; i++)
                         {
-                            var jo = ja[i];
-                            cl.Valves[i].Type = (ValveType)(byte)jo[JKeys.Collector.ValveType];
-                            cl.Valves[i].RelayChannel = (byte)jo[JKeys.Collector.ValveChannel];
-                            cl.Valves[i].Opened = (bool)jo[JKeys.Generic.Status];
+                            var jo = ja[i] as JObject;
+                            cl.actuators[i].Type = (ActuatorType)(byte)jo[JKeys.Collector.ActuatorType];
+                            cl.actuators[i].RelayChannel = (byte)jo[JKeys.Collector.ActuatorChannel];
+                            if (content == JKeys.Content.ConfigPlus)
+                                cl.actuators[i].Opened = JSonValueOrDefault(jo, JKeys.Generic.Status, false);// (bool)jo[JKeys.Generic.Status];
                         }
                         cl.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.Collectors));
                         collectors.Add(cl);
@@ -72,9 +76,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     if(col != null)
                     {
                         JArray ja = (JArray)data[JKeys.Generic.Status];
-                        for(byte i=0; i < col.ValveCount; i++)
+                        for(byte i=0; i < col.ActuatorsCount; i++)
                         {
-                            col.Valves[i].Opened = Convert.ToBoolean((string)ja[i]);
+                            col.actuators[i].Opened = Convert.ToBoolean((string)ja[i]);
                         }
                     }
                     SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), data);

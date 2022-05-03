@@ -4,8 +4,8 @@ using System;
 
 namespace NSUWatcher.NSUWatcherNet
 {
-	public class NetClientData
-	{
+	public class NetClientData : IEquatable<NetClientData>
+    {
 		public enum NetClientType
 		{
 			Unknow,
@@ -24,6 +24,16 @@ namespace NSUWatcher.NSUWatcherNet
         public bool IsReady { get; set; } = false;
         public NetClientAccepts ClientAccepts { get; set; } = NetClientAccepts.Alarm | NetClientAccepts.Error | NetClientAccepts.System;
         public string CommandID { get; set; } = string.Empty;
+        public override string ToString()
+        {
+            return $"User name: '{UserData?.Username}'. User IP: '{IPAddress}'";
+        }
+
+        public bool Equals(NetClientData other)
+        {
+            if (other == null) return false;
+            return ClientID.Equals(other.ClientID);
+        }
     }
 }
 

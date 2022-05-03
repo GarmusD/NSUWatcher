@@ -32,35 +32,18 @@ namespace NSUWatcher
 
 		readonly string LogTag = "CmdCenter";
 
-        readonly NSUSys nsusystem;
         SerialTransport transport;
         CmdMessenger messenger;
         System.Timers.Timer guard_timer;
+        JsonSerializerSettings jsonsettings;
 
-		public CmdCenter()
+        public bool Running { get; set; } = false;
+
+        public CmdCenter()
 		{
-			nsusystem = new NSUSys(this);
-		}
-
-		public void Stop()
-		{
-			NSULog.Debug(LogTag, "Stop()");
-			//are.Set();
-            messenger.StopListening();
-            messenger.Dispose();
-            transport.Dispose();
-            //worker.Join();
-			nsusystem.Stop();
-            guard_timer.Enabled = false;            
-        }
-
-		public bool Start()
-		{
-			NSULog.Debug(LogTag, "Start()");
-
             transport = new SerialTransport
             {
-                CurrentSerialSettings = { PortName = Config.Instance().PortName, BaudRate = Config.Instance().BaudRate, DtrEnable = false } // object initializer
+                CurrentSerialSettings = { PortName = Config.Instance().PortName, BaudRate = Config.Instance().BaudRate, DtrEnable = false, RtsEnable = false } // object initializer
             };
             messenger = new CmdMessenger(transport, ' ', '\n')
             {
@@ -76,24 +59,85 @@ namespace NSUWatcher
             };
             guard_timer.Elapsed += OnGuardTimer;
 
-            if (messenger.StartListening())
+            jsonsettings = new JsonSerializerSettings() { Culture = CultureInfo.CreateSpecificCulture("en-US") };
+        }
+
+        public void SendDTRSignal()
+        {
+            NSULog.Debug(LogTag, "Sending DTR signal...");
+            transport.SerialPort.DtrEnable = true;
+            Thread.Sleep(200);
+            transport.SerialPort.DtrEnable = false;
+        }
+
+		public bool Start(bool dtrEnable = false)
+		{
+			NSULog.Debug(LogTag, $"Start(dtrEnable = {dtrEnable})");
+            //With DTR enabled MCU will restart on connection
+            if (dtrEnable)
             {
-                /*
-                NSULog.Debug(LogTag, "DoWork() - Messenger is Listening;");
-                worker = new Thread(new ThreadStart(CmdCenterTaskThread));
-                worker.Name = "CmdCenterThread";
-                worker.Start();
-                */
+                //transport.CurrentSerialSettings.BaudRate = 1200;
+                transport.CurrentSerialSettings.DtrEnable = true;
+
+                if(messenger.StartListening())
+                {
+                    Thread.Sleep(200);
+                    messenger.StopListening();
+                    transport.CurrentSerialSettings.BaudRate = Config.Instance().BaudRate;
+                    transport.CurrentSerialSettings.DtrEnable = false;
+
+                    Thread.Sleep(200);
+                }
+                else
+                {
+                    NSULog.Error(LogTag, "Messenger not started listening with DTR enabled.");
+                    return false;
+                }
+            }
+            if (messenger.StartListening())
+            {                
+                NSULog.Debug(LogTag, "Started. OK.");
+                Running = true;
                 OnCmdCenterStarted?.Invoke();
                 return true;
             }
             else
             {
-                NSULog.Debug(LogTag, "DoWork() - Messenger is Not Listening");
+                NSULog.Error(LogTag, "DoWork() - Messenger is Not Listening");
+                Running = false;
                 return false;
-            }
-            
+            }            
 		}
+
+        public void Stop()
+        {
+            if (Running)
+            {
+                NSULog.Debug(LogTag, "Stop()");
+
+                if (messenger.StopListening())
+                {
+                    NSULog.Debug(LogTag, "Stopped. OK.");
+                    guard_timer.Enabled = false;
+                    Running = false;
+                }
+                else
+                {
+                    NSULog.Error(LogTag, "Stop() FAILED.");
+                }
+            }
+            else
+            {
+                NSULog.Debug(LogTag, "messenger is not running.");
+            }
+        }
+
+        public void Dispose()
+        {
+            Stop();
+            messenger.Dispose();
+            transport.Dispose();
+        }
 
         /// Attach command call backs. 
 		private void AttachCommandCallBacks()
@@ -112,43 +156,6 @@ namespace NSUWatcher
             }
         }
 
-        void StartExternalProccess(string fileName, string arguments)
-        {
-            var prc = new Process();
-            ProcessStartInfo psi = new ProcessStartInfo(fileName);
-            psi.Arguments = arguments;
-            psi.RedirectStandardOutput = true;
-            psi.RedirectStandardError = true;
-            psi.UseShellExecute = false;
-            psi.CreateNoWindow = true;
-
-            prc.StartInfo = psi;
-            prc.EnableRaisingEvents = true;
-            prc.OutputDataReceived += ExtPrc_OutputDataReceived; ;
-            //prc.Exited += HandlePrcExited;            
-            prc.Start();
-            prc.BeginOutputReadLine();
-            prc.WaitForExit(5000);
-        }
-
-        private void WriteToGPIO(byte value)
-        {
-            try
-            {
-                using (FileStream fs = new FileStream("/sys/class/gpio/gpio0/value", FileMode.Open, FileAccess.Write))
-                {
-                    fs.Seek(0, SeekOrigin.Begin);
-                    fs.WriteByte(value);
-                    fs.Flush();
-                    fs.Dispose();
-                }
-            }
-            catch (Exception ex)
-            {
-                NSULog.Exception(LogTag, "WriteToGPIO()" + ex.Message);
-            }
-        }
-
         private void ExtPrc_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
             NSULog.Debug("ExternalProccess", e.Data);
@@ -157,34 +164,17 @@ namespace NSUWatcher
         //TODO Sutvarkyti Arduino perkrovima
         void OnGuardTimer(object sender, ElapsedEventArgs e)
         {
-            NSULog.Debug(LogTag, "OnGuardTimer(). ARDUINO CRASHED - rebooting!");
-            try
-            {
-                OnArduinoCrashed?.Invoke();
-            }
-            finally
-            {
-                var cmd = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "reboot_arduino.sh");
-                NSULog.Debug(LogTag, $"Calling '/bin/bash {cmd}'");
-                Process.Start("/bin/bash", cmd);
-            }
-            return;
-
+            NSULog.Debug(LogTag, "OnGuardTimer(). ARDUINO CRASHED - raising OnArduinoCrashed!");
             try
             {
                 guard_timer.Enabled = false;
-                //StartExternalProccess("sudo echo 0 > /sys/class/gpio/gpio0/value", "");
-                WriteToGPIO(0);
-                System.Threading.Thread.Sleep(100);
-                //StartExternalProccess("sudo echo 1 > /sys/class/gpio/gpio0/value", "");                
-                WriteToGPIO(1);
+                OnArduinoCrashed?.Invoke();
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
-                NSULog.Exception(LogTag, "OnGuardTimer(): " + ex.Message);
+                NSULog.Exception(LogTag, "OnGuardTimer(): "+ex);
             }
-            //sudo echo 0 > /sys/class/gpio/gpio0/value
-            //sudo echo 1 > /sys/class/gpio/gpio0/value
+            return;
         }
 
 
@@ -194,15 +184,6 @@ namespace NSUWatcher
             var scmd = new SendCommand(0, cmd);
             scmd.ReqAc = waitAck;
             messenger.SendCommand(scmd);
-        }
-
-        public void ManualCommand(string cmd)
-        {
-            NSULog.Debug(LogTag, $"ManualCommand received: {cmd}");
-            var vs = new JObject();
-            vs.Add(JKeys.Generic.Target, JKeys.UserCmd.TargetName);
-            vs.Add(JKeys.Generic.Value, cmd);
-            OnArduinoDataReceived?.Invoke(vs);
         }
 
         private void ArduinoSerialLine(string receivedLine)
@@ -235,8 +216,8 @@ namespace NSUWatcher
             {
                 string strtojson = receivedLine.Remove(0, receivedLine.IndexOf(' ') + 1);
                 try
-                {
-                    var jo = (JObject)JsonConvert.DeserializeObject(strtojson, new JsonSerializerSettings(){ Culture=CultureInfo.CreateSpecificCulture("en-US") });
+                {                     
+                    var jo = (JObject)JsonConvert.DeserializeObject(strtojson, jsonsettings);
                     //NSULog.Debug(LogTag, "Calling OnArduinoDataReceived?.Invoke(jo);");
                     OnArduinoDataReceived?.Invoke(jo);
                 }

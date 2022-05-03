@@ -50,28 +50,30 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     if (data.Property(JKeys.Generic.Result) == null)
                     {
                         ComfortZone czn = new ComfortZone();
-                        czn.ConfigPos = (int)data[JKeys.Generic.ConfigPos];
-                        czn.Name = (string)data[JKeys.Generic.Name];
-                        czn.Title = (string)data[JKeys.ComfortZone.Title];
-                        czn.CollectorName = (string)data[JKeys.ComfortZone.CollectorName];
-                        czn.Channel = (byte)data[JKeys.ComfortZone.Channel];
-                        czn.Histeresis = (float)data[JKeys.ComfortZone.Histeresis];
-                        czn.RoomSensorName = (string)data[JKeys.ComfortZone.RoomSensorName];
-                        czn.RoomTempHi = (float)data[JKeys.ComfortZone.RoomTempHi];
-                        czn.RoomTempLow = (float)data[JKeys.ComfortZone.RoomTempLow];
-                        czn.FloorSensorName = (string)data[JKeys.ComfortZone.FloorSensorName];
-                        czn.FloorTempHi = (float)data[JKeys.ComfortZone.FloorTempHi];
-                        czn.FloorTempLow = (float)data[JKeys.ComfortZone.FloorTempLow];
-                        if (((string)data[JKeys.Generic.Content]).Equals(JKeys.Content.ConfigPlus))
+                        czn.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, ComfortZone.INVALID_VALUE);
+                        czn.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
+                        czn.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+                        czn.Title = JSonValueOrDefault(data, JKeys.ComfortZone.Title, string.Empty);
+                        czn.CollectorName = JSonValueOrDefault(data, JKeys.ComfortZone.CollectorName, string.Empty);
+                        czn.Actuator = JSonValueOrDefault(data, JKeys.ComfortZone.Actuator, ComfortZone.INVALID_VALUE);
+                        czn.Histeresis = JSonValueOrDefault(data, JKeys.ComfortZone.Histeresis, 0);
+                        czn.RoomSensorName = JSonValueOrDefault(data, JKeys.ComfortZone.RoomSensorName, string.Empty);
+                        czn.RoomTempHi = JSonValueOrDefault(data, JKeys.ComfortZone.RoomTempHi, 0f);
+                        czn.RoomTempLow = JSonValueOrDefault(data, JKeys.ComfortZone.RoomTempLow, 0f);
+                        czn.FloorSensorName = JSonValueOrDefault(data, JKeys.ComfortZone.FloorSensorName, string.Empty);
+                        czn.FloorTempHi = JSonValueOrDefault(data, JKeys.ComfortZone.FloorTempHi, 0f);
+                        czn.FloorTempLow = JSonValueOrDefault(data, JKeys.ComfortZone.FloorTempLow, 0f);
+
+                        if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
                         {
-                            czn.CurrentRoomTemperature = (float)data[JKeys.ComfortZone.CurrentRoomTemp];
-                            czn.CurrentFloorTemperature = (float)data[JKeys.ComfortZone.CurrentFloorTemp];
-                            czn.ValveOpened = Convert.ToBoolean((string)data[JKeys.ComfortZone.ValveOpened]);
+                            czn.CurrentRoomTemperature = JSonValueOrDefault(data, JKeys.ComfortZone.CurrentRoomTemp, 0f);
+                            czn.CurrentFloorTemperature = JSonValueOrDefault(data, JKeys.ComfortZone.CurrentFloorTemp, 0f);
+                            czn.ActuatorOpened = JSonValueOrDefault(data, JKeys.ComfortZone.ActuatorOpened, false);
                         }
                         czn.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.ComfortZones));
                         czn.OnFloorTemperatureChanged += OnFloorTemperatureChangedHandler;
                         czn.OnRoomTemperatureChanged += OnRoomTemperatureChangedHandler;
-                        czn.OnValveOpenedChanged += OnValveOpenedChangedHandler;
+                        czn.OnActuatorOpenedChanged += OnActuatorOpenedChangedHandler;
                         ComfZones.Add(czn);
                     }
                     break;
@@ -88,8 +90,8 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                             case JKeys.ComfortZone.CurrentFloorTemp:
                                 cz.CurrentFloorTemperature = (float)data[JKeys.Generic.Value];
                                 break;
-                            case JKeys.ComfortZone.ValveOpened:
-                                cz.ValveOpened = (bool)data[JKeys.Generic.Value];
+                            case JKeys.ComfortZone.ActuatorOpened:
+                                cz.ActuatorOpened = (bool)data[JKeys.Generic.Value];
                                 break;
                         }
                     }
@@ -109,39 +111,39 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        private void OnValveOpenedChangedHandler(ComfortZone sender, bool value)
+        private void OnActuatorOpenedChangedHandler(object sender, ActuatorOpenedEventArgs e)
         {
             NSULog.Debug(LogTag, "OnValveOpenedChangedHandler(). Creating Jobject()");
             JObject jo = new JObject();
             jo[JKeys.Generic.Target] = JKeys.ComfortZone.TargetName;
             jo[JKeys.Generic.Action] = JKeys.Action.Info;
-            jo[JKeys.Generic.Name] = sender.Name;
-            jo[JKeys.Generic.Content] = JKeys.ComfortZone.ValveOpened;
-            jo[JKeys.Generic.Value] = value;
+            jo[JKeys.Generic.Name] = (sender as ComfortZone).Name;
+            jo[JKeys.Generic.Content] = JKeys.ComfortZone.ActuatorOpened;
+            jo[JKeys.Generic.Value] = e.Opened;
             SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
         }
 
-        private void OnRoomTemperatureChangedHandler(ComfortZone sender, float value)
+        private void OnRoomTemperatureChangedHandler(object sender, TempChangedEventArgs e)
         {
             NSULog.Debug(LogTag, "OnRoomTemperatureChangedHandler(). Creating Jobject()");
             JObject jo = new JObject();
             jo[JKeys.Generic.Target] = JKeys.ComfortZone.TargetName;
             jo[JKeys.Generic.Action] = JKeys.Action.Info;
-            jo[JKeys.Generic.Name] = sender.Name;
+            jo[JKeys.Generic.Name] = (sender as ComfortZone).Name;
             jo[JKeys.Generic.Content] = JKeys.ComfortZone.CurrentRoomTemp;
-            jo[JKeys.Generic.Value] = value;
+            jo[JKeys.Generic.Value] = e.Temperature;
             SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
         }
 
-        private void OnFloorTemperatureChangedHandler(ComfortZone sender, float value)
+        private void OnFloorTemperatureChangedHandler(object sender, TempChangedEventArgs e)
         {
             NSULog.Debug(LogTag, "OnFloorTemperatureChangedHandler(). Creating Jobject()");
             JObject jo = new JObject();
             jo[JKeys.Generic.Target] = JKeys.ComfortZone.TargetName;
             jo[JKeys.Generic.Action] = JKeys.Action.Info;
-            jo[JKeys.Generic.Name] = sender.Name;
+            jo[JKeys.Generic.Name] = (sender as ComfortZone).Name;
             jo[JKeys.Generic.Content] = JKeys.ComfortZone.CurrentFloorTemp;
-            jo[JKeys.Generic.Value] = value;
+            jo[JKeys.Generic.Value] = e.Temperature;
             SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
         }
 
