@@ -49,8 +49,8 @@ namespace NSUWatcher.NSUSystem
         private DBUtility dbUtility = null;
         private NSUSysPartInfo sysPart;
 
-        private System.Timers.Timer minuteTimer = new System.Timers.Timer(1000 * 60);
-        private System.Timers.Timer secondTimer = new System.Timers.Timer(1000);
+        private System.Timers.Timer oneMinuteTimer = new System.Timers.Timer(1000 * 60);
+        private System.Timers.Timer oneSecondTimer = new System.Timers.Timer(1000);
         private int oldMin;
 
         private NSUSysPartInfo nsupart;
@@ -63,16 +63,16 @@ namespace NSUWatcher.NSUSystem
 
         public MCUStatus ArduinoStatus
         {
-            get { return ardStatus; }
+            get { return arduinoStatus; }
             set
             {
-                if (ardStatus != value)
+                if (arduinoStatus != value)
                 {
-                    ardStatus = value;
+                    arduinoStatus = value;
                 }
             }
         }
-        private MCUStatus ardStatus = MCUStatus.Off;
+        private MCUStatus arduinoStatus = MCUStatus.Off;
 
         public List<NSUSysPartInfo> NSUParts { get; }
 
@@ -92,16 +92,9 @@ namespace NSUWatcher.NSUSystem
             XMLConfig = new NSUXMLConfig();
             XMLConfig.FileName = Path.Combine(Config.Instance().NSUWritablePath, Config.Instance().NSUXMLSnapshotFile);
 
-            string connectionString =
-                "Server=localhost;" +
-                "Database=NSU;" +
-                "User ID=NSU;" +
-                "Password=p3m2uNXg;" +
-                "Pooling=false";
-
             cmdCenter = new CmdCenter();
 
-            dbUtility = new DBUtility(connectionString);
+            dbUtility = new DBUtility(getConnectionString());
 
             Users = new NSUUsers(dbUtility);
 
@@ -123,9 +116,9 @@ namespace NSUWatcher.NSUSystem
             cmdCenter.OnCmdCenterStarted += OnCmdCenterStarted;
             cmdCenter.OnArduinoDataReceived += OnArduinoDataReceived;
 
-            minuteTimer.Elapsed += MinuteTimer_Elapsed;
-            minuteTimer.AutoReset = true;
-            secondTimer.Elapsed += SecondTimer_Elapsed;
+            oneMinuteTimer.Elapsed += MinuteTimer_Elapsed;
+            oneMinuteTimer.AutoReset = true;
+            oneSecondTimer.Elapsed += SecondTimer_Elapsed;
 
             PushNotifications = new PushNotifications();
             SystemTime = new TimeHelper();
@@ -134,6 +127,16 @@ namespace NSUWatcher.NSUSystem
             
             NetServer.Start();
 
+        }
+
+        private string getConnectionString()
+        {
+            return 
+                $"Server={Config.Instance().DBServerHost};" +
+                $"Database={Config.Instance().DBName};" +
+                $"User ID={Config.Instance().DBUserName};" +
+                $"Password={Config.Instance().DBUserPassword};" +
+                "Pooling=false";
         }
 
         private void SystemTimeChanged(object sender, EventArgs e)
@@ -155,7 +158,7 @@ namespace NSUWatcher.NSUSystem
         private void CalibrateMinuteStart()
         {
             oldMin = DateTime.Now.Minute;
-            secondTimer.Enabled = true;
+            oneSecondTimer.Enabled = true;
         }
 
         private void SecondTimer_Elapsed(object sender, ElapsedEventArgs e)
@@ -163,9 +166,9 @@ namespace NSUWatcher.NSUSystem
             if (oldMin != DateTime.Now.Minute)
             {
                 oldMin = DateTime.Now.Minute;
-                minuteTimer.Enabled = true;
+                oneMinuteTimer.Enabled = true;
                 MinuteTimer_Elapsed(null, null);
-                secondTimer.Enabled = false;
+                oneSecondTimer.Enabled = false;
             }
         }
 

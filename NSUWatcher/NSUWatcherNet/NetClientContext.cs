@@ -25,6 +25,7 @@ namespace NSUWatcher.NSUWatcherNet
         TcpClient client;
         NetworkStream netStream;
         InternalArgBuilder idra;
+        //response timer
         System.Timers.Timer respTimer;
         System.Timers.Timer pingTimer;
 

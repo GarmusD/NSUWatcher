@@ -18,6 +18,9 @@ using System.Net.NetworkInformation;
 
 namespace NSUWatcher.NSUWatcherNet
 {
+    /// <summary>
+    /// Network server to handle connection from app's
+    /// </summary>
     public class NetServer
     {
         private const int SEND_BUFFER_HEADER_SIZE = sizeof(byte) + sizeof(int);
@@ -27,6 +30,9 @@ namespace NSUWatcher.NSUWatcherNet
 
         private System.Timers.Timer netTimer;
 
+        /// <summary>
+        /// EventArgs for DataReceived event
+        /// </summary>
         public class DataReceivedArgs : EventArgs
         {
             public NetClientData ClientData;
@@ -35,6 +41,7 @@ namespace NSUWatcher.NSUWatcherNet
             public int count;
             string s;
 
+            
             public DataReceivedArgs(NetClientData ClientData, NetDataType dt, byte[] buff, int cnt)
             {
                 this.ClientData = ClientData;
@@ -48,6 +55,11 @@ namespace NSUWatcher.NSUWatcherNet
                 }
             }
 
+            /// <summary>
+            /// Only string data supported for now
+            /// </summary>
+            /// <param name="ClientData"></param>
+            /// <param name="buff"></param>
             public DataReceivedArgs(NetClientData ClientData, string buff)
             {
                 this.ClientData = ClientData;
@@ -63,6 +75,9 @@ namespace NSUWatcher.NSUWatcherNet
             }
         };
 
+        /// <summary>
+        /// Helps to find out when network adapter is ready and connected
+        /// </summary>
         private class AdapterHelper
         {
             private readonly string LogTag = "AdapterHelper";
@@ -98,6 +113,11 @@ namespace NSUWatcher.NSUWatcherNet
                 }
             }
 
+            /// <summary>
+            /// Raise event if adapter is ready
+            /// </summary>
+            /// <param name="sender"></param>
+            /// <param name="e"></param>
             private void HelperTimer_Elapsed(object sender, ElapsedEventArgs e)
             {
                 if(IsNetworkAdapterReady())
@@ -107,39 +127,45 @@ namespace NSUWatcher.NSUWatcherNet
                 }
             }
 
+            /// <summary>
+            /// Check network adapter is connected
+            /// </summary>
+            /// <returns>true if connected</returns>
             private bool IsNetworkAdapterReady()
             {
-                return System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable();
+                return NetworkInterface.GetIsNetworkAvailable();
 
-                NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
-                if (nics == null || nics.Length < 1)
-                {
-                    NSULog.Debug(LogTag, "No network interfaces found.");
-                    return false;
-                }
-                foreach (NetworkInterface adapter in nics)
-                {
-                    IPInterfaceProperties properties = adapter.GetIPProperties();
-                    if (adapter.Supports(NetworkInterfaceComponent.IPv4) &&
-                        adapter.OperationalStatus == OperationalStatus.Up &&
-                        (adapter.NetworkInterfaceType == NetworkInterfaceType.Ethernet || adapter.NetworkInterfaceType == NetworkInterfaceType.Wireless80211))
-                    {
-                        return true;
-                    }
-                }
-                return false;
+                //NetworkInterface[] nics = NetworkInterface.GetAllNetworkInterfaces();
+                //if (nics == null || nics.Length < 1)
+                //{
+                //    NSULog.Debug(LogTag, "No network interfaces found.");
+                //    return false;
+                //}
+                //foreach (NetworkInterface adapter in nics)
+                //{
+                //    IPInterfaceProperties properties = adapter.GetIPProperties();
+                //    if (adapter.Supports(NetworkInterfaceComponent.IPv4) &&
+                //        adapter.OperationalStatus == OperationalStatus.Up &&
+                //        (adapter.NetworkInterfaceType == NetworkInterfaceType.Ethernet || adapter.NetworkInterfaceType == NetworkInterfaceType.Wireless80211))
+                //    {
+                //        return true;
+                //    }
+                //}
+                //return false;
             }
         }
 
         readonly Statistics statistics = new Statistics();
 
         TcpListener server;
+        //List of connected clients
         List<TcpClientHandler> clients;
         SynchronizationContext Context;
         AdapterHelper ahelper;
         object slock;
         volatile bool stop_request;
         private bool runClientsCleanUp;
+        //Command queue
         private Queue<JObject> CmdQueue = new Queue<JObject>();
 
         public delegate void ClientConnectedEventHandler(NetClientData clientData);
@@ -196,8 +222,8 @@ namespace NSUWatcher.NSUWatcherNet
         {
             while (!stop_request)
             {
-                var res = await ListeningThread();
-                if (res && !stop_request)
+                var result = await ListeningThread();
+                if (result && !stop_request)//true - error;
                 {
                     NSULog.Debug(LogTag, "Start(). await ListeningThread() returned error. Restarting listener.");
                     clients.Clear();
@@ -269,7 +295,7 @@ namespace NSUWatcher.NSUWatcherNet
                 {
                     clients.Add(ch);
                 }
-                ch.RunListener();
+                _ = ch.RunListener();
                 NSULog.Debug(LogTag, "ListeningThread() - Raising ClientConnected event.");
                 try
                 {
