@@ -9,12 +9,13 @@ namespace NSUWatcher
     {
         private const string LogTag = "Config";
 
-        //Default values
-        public string CfgFile { get; set; }
-        public string PortName { get; set; }
-        public int BaudRate { get; set; }
-        public string Bossac { get; set; }
-        public string BossacPort { get; set; }
+
+        public static string CfgFile { get; set; } = "/etc/NSU/NSUWatcher.conf";
+        public int NetServerPort { get; private set; }
+        public string PortName { get; private set; }
+        public int BaudRate { get; private set; }
+        public string Bossac { get; private set; }
+        public string BossacPort { get; private set; }
         public bool ArduinoPauseBoot { get; set; }
 
         public string DBServerHost { get; private set; }
@@ -22,26 +23,17 @@ namespace NSUWatcher
         public string DBUserName { get; private set; }
         public string DBUserPassword { get; private set; }
 
-        public string NSUWritablePath { get; set; }
-        public string NSUXMLSnapshotFile { get;  set;}
+        public string NSUWritablePath { get; private set; }
+        public string NSUXMLSnapshotFile { get; private set; }
+
+        public List<string> UserCommands => _cmdLines;
 
         //private declarations
-        
-		private int baudrate;
 
-		public List<string> CmdLines = new List<string>();
-		
-        static Config instance = null;
-        public static Config Instance(string cfgfile = "/etc/NSU/NSUWatcher.conf")
-        {
-            instance = instance ?? new Config(cfgfile);
-            return instance;
-        }
+        private readonly List<string> _cmdLines = new List<string>();
 
-        Config(string cfgfile)
+        public Config()
         {
-            char[] separators = { '=' };
-            CfgFile = cfgfile;
             PortName = "/dev/ttymxc3";
             BaudRate = 115200;
             Bossac = "/usr/bin/bossac-udoo";
@@ -50,75 +42,101 @@ namespace NSUWatcher
             NSUWritablePath = "/var/lib/nsuwatcher";
             NSUXMLSnapshotFile = "snapshot.xml";
 
-            NSULog.Debug(LogTag, $"Main(). Reading config file '{cfgfile}'.");
-            if (File.Exists(cfgfile))
+            NSULog.Debug(LogTag, $"Main(). Reading config file '{CfgFile}'.");
+            if (File.Exists(CfgFile))
             {
-                using (StreamReader sr = new StreamReader(cfgfile))
+                foreach (string line in File.ReadLines(CfgFile))
                 {
-                    string line;
-                    while (!sr.EndOfStream)
+                    if (IsDataLine(line))
                     {
-                        line = sr.ReadLine().Trim();
-                        if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith("#", StringComparison.Ordinal) && line.Contains("="))
-                        {
-                            string[] pair = line.Split(separators, StringSplitOptions.RemoveEmptyEntries);
-                            string parameter = pair[0].Trim().ToLower();
-                            string value = pair[1].Trim().ToLower();
-                            switch (parameter)
-                            {
-                                case "port":
-                                    PortName = value;
-                                    break;
-                                case "bossac":
-                                    Bossac = value;
-                                    break;
-                                case "baudrate":
-                                    if (int.TryParse(value, out baudrate))
-                                    {
-                                        BaudRate = baudrate;
-                                    }
-                                    break;
-                                case "dbserver":
-                                    DBServerHost = value;
-                                    break;
-                                case "dbname":
-                                    DBName = value;
-                                    break;
-                                case "dbuser":
-                                    DBUserName = value;
-                                    break;
-                                case "dbpassword":
-                                    CmdLines.Add(value);
-                                    break;
-                            default:
-                                if (parameter.StartsWith("cmd"))
-                                {
-                                    CmdLines.Add(value);
-                                }
-                                break;
-                            }
-                        }
+                        ParseLine(line);
                     }
                 }
             }
-            else { }
-            
+            else
+            {
+                NSULog.Error(LogTag, $"CfgFile '{CfgFile}' not exists.");
+                throw new FileNotFoundException(CfgFile);
+            }
+
         }
 
-        private void WriteDefaultsToIniFile()
+        private static bool IsDataLine(string line)
+        {
+            return  !string.IsNullOrWhiteSpace(line) && 
+                    !line.StartsWith("#", StringComparison.Ordinal) && 
+                    line.Contains("=");
+        }
+
+        private void ParseLine(string line)
+        {
+            char[] separators = { '=' };
+            string[] pair = line.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+            string parameter = pair[0].Trim().ToLower();
+            string value = pair[1].Trim().ToLower();
+            switch (parameter)
+            {
+                case "netport":
+                    NetServerPort = -1;
+                    if (int.TryParse(value, out int netPort))
+                        NetServerPort = netPort;
+                    break;
+
+                case "port":
+                    PortName = value;
+                    break;
+
+                case "bossac":
+                    Bossac = value;
+                    break;
+
+                case "baudrate":
+                    if (int.TryParse(value, out int baudrate))
+                        BaudRate = baudrate;
+                    break;
+
+                case "dbserver":
+                    DBServerHost = value;
+                    break;
+
+                case "dbname":
+                    DBName = value;
+                    break;
+
+                case "dbuser":
+                    DBUserName = value;
+                    break;
+
+                case "dbpassword":
+                    _cmdLines.Add(value);
+                    break;
+
+                default:
+                    if (parameter.StartsWith("cmd"))
+                    {
+                        _cmdLines.Add(value);
+                    }
+                    break;
+            }
+        }
+
+        public static void WriteDefaultsToIniFile()
         {
             string[] cfgLines = new string[]
             {
                 @"# NSUWatcher config",
+                @"# NetServer port",
+                @"netport = portnumber",
+                @"# Arduino serial",
                 @"port=/dev/ttymxc3",
                 @"baudrate = 115200",
-                @"#Commands to exec",
+                @"# Commands to exec",
                 @"cmd1=relay open 16",
-                @"#DB",
+                @"# DB",
                 @"dbserver=db_host",
                 @"dbname=db_name",
                 @"dbuser=db_user_name",
-                @"dbpassword=db_user_password"
+                @"dbpassword=db_password"
             };
             File.WriteAllLines(CfgFile, cfgLines);
         }
