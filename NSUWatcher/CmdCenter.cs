@@ -36,14 +36,16 @@ namespace NSUWatcher
         CmdMessenger messenger;
         System.Timers.Timer guard_timer;
         JsonSerializerSettings jsonsettings;
+        private readonly Config _config;
 
         public bool Running { get; set; } = false;
 
-        public CmdCenter()
+        public CmdCenter(Config config)
 		{
+            _config = config ?? throw new ArgumentNullException(nameof(config), "Config object cannot be null.");
             transport = new SerialTransport
             {
-                CurrentSerialSettings = { PortName = Config.Instance().PortName, BaudRate = Config.Instance().BaudRate, DtrEnable = false, RtsEnable = false } // object initializer
+                CurrentSerialSettings = { PortName = _config.PortName, BaudRate = _config.BaudRate, DtrEnable = false, RtsEnable = false } // object initializer
             };
             messenger = new CmdMessenger(transport, ' ', '\n')
             {
@@ -83,7 +85,7 @@ namespace NSUWatcher
                 {
                     Thread.Sleep(200);
                     messenger.StopListening();
-                    transport.CurrentSerialSettings.BaudRate = Config.Instance().BaudRate;
+                    transport.CurrentSerialSettings.BaudRate = _config.BaudRate;
                     transport.CurrentSerialSettings.DtrEnable = false;
 
                     Thread.Sleep(200);
