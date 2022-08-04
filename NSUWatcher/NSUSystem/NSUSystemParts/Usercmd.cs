@@ -21,7 +21,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void ProccessArduinoData(JObject data)
         {
-            NSULog.Debug(LogTag, $"ProccessArduinoData(JObject data:{data.ToString()})");
+            NSULog.Debug(LogTag, $"ProccessArduinoData(JObject data:{data})");
             if (data.Property(JKeys.Generic.Value) != null)
             {
                 string cmd = (string)data[JKeys.Generic.Value];
@@ -76,70 +76,121 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 
                 if (cmd.StartsWith(JKeys.WoodBoiler.TargetName, System.StringComparison.InvariantCultureIgnoreCase))
                 {
-                    string[] parts = cmd.Split(' ');
-                    if (parts[1].Equals("workingtemp", System.StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        try
-                        {
-                            JObject jo = new JObject();
-                            jo[JKeys.Generic.Target] = JKeys.WoodBoiler.TargetName;
-                            jo[JKeys.Generic.Name] = "default";
-                            jo[JKeys.Generic.Action] = JKeys.Generic.Setup;
-                            jo[JKeys.WoodBoiler.WorkingTemp] = float.Parse(parts[2]);
-                            SendToArduino(jo);
-                        }
-                        catch (Exception ex)
-                        {
-                            NSULog.Error("UserCMD", ex.Message);
-                        }
-                    }
+                    ProcessWoodBoilerCmd(cmd);
                     return;
                 }
 
                 if (cmd.StartsWith(JKeys.Switch.TargetName, System.StringComparison.InvariantCultureIgnoreCase))
                 {
-                    string[] parts = cmd.Split(' ');
-                    if (parts[2].Equals("click", System.StringComparison.InvariantCultureIgnoreCase))
-                    {
-                        try
-                        {
-                            JObject jo = new JObject();
-                            jo[JKeys.Generic.Target] = JKeys.Switch.TargetName;
-                            jo[JKeys.Generic.Name] = parts[1];
-                            jo[JKeys.Generic.Action] = "click";                          
-                            SendToArduino(jo);
-                        }
-                        catch (Exception ex)
-                        {
-                            NSULog.Error("UserCMD", ex.Message);
-                        }
-                    }
+                    ProcessSwitchCmds(cmd);
                     return;
                 }
 
-                if(cmd.StartsWith(JKeys.RelayModule.TargetName, StringComparison.InvariantCultureIgnoreCase))
+                if (cmd.StartsWith(JKeys.RelayModule.TargetName, StringComparison.InvariantCultureIgnoreCase))
                 {
-                    string[] parts = cmd.Split(' ');
-                    if(parts.Length == 3)
+                    ProcessRelayCmds(cmd);
+                    return;
+                }
+
+                if (cmd.StartsWith(JKeys.TempSensor.TargetName, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    ProcessTSensorCmds(cmd);
+                    return;
+                }
+
+                NSULog.Info("UserCMD", $"Unknown command: '{cmd}'");
+            }
+        }
+
+        private void ProcessWoodBoilerCmd(string cmd)
+        {
+            string[] parts = cmd.Split(' ');
+            if (parts[1].Equals("workingtemp", System.StringComparison.InvariantCultureIgnoreCase))
+            {
+                try
+                {
+                    JObject jo = new JObject();
+                    jo[JKeys.Generic.Target] = JKeys.WoodBoiler.TargetName;
+                    jo[JKeys.Generic.Name] = "default";
+                    jo[JKeys.Generic.Action] = JKeys.Generic.Setup;
+                    jo[JKeys.WoodBoiler.WorkingTemp] = float.Parse(parts[2]);
+                    SendToArduino(jo);
+                }
+                catch (Exception ex)
+                {
+                    NSULog.Error("UserCMD", ex.Message);
+                }
+            }
+        }
+
+        private void ProcessSwitchCmds(string cmd)
+        {
+            string[] parts = cmd.Split(' ');
+            if (parts[2].Equals("click", System.StringComparison.InvariantCultureIgnoreCase))
+            {
+                try
+                {
+                    JObject jo = new JObject();
+                    jo[JKeys.Generic.Target] = JKeys.Switch.TargetName;
+                    jo[JKeys.Generic.Name] = parts[1];
+                    jo[JKeys.Generic.Action] = "click";
+                    SendToArduino(jo);
+                }
+                catch (Exception ex)
+                {
+                    NSULog.Error("UserCMD", ex.Message);
+                }
+            }
+        }
+
+        private void ProcessRelayCmds(string cmd)
+        {
+            string[] parts = cmd.Split(' ');
+            if (parts.Length == 3)
+            {
+                JObject jo = new JObject();
+                jo[JKeys.Generic.Target] = JKeys.RelayModule.TargetName;
+                if (parts[1].Equals("open", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    jo[JKeys.Generic.Action] = JKeys.RelayModule.ActionOpenChannel;
+                }
+                else if (parts[1].Equals("close", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    jo[JKeys.Generic.Action] = JKeys.RelayModule.ActionCloseChannel;
+                }
+                else
+                {
+                    NSULog.Error(LogTag, $"Invalid command: {cmd}");
+                }
+                byte b;
+                if (byte.TryParse(parts[2], out b))
+                {
+                    jo[JKeys.Generic.Value] = b;
+                    SendToArduino(jo);
+                }
+            }
+            else
+            {
+                NSULog.Error(LogTag, $"Invalid command: {cmd}");
+            }
+        }
+
+        private void ProcessTSensorCmds(string cmd)
+        {
+            string[] parts = cmd.Split(' ');
+            if (parts.Length > 2)
+            {
+                if (parts[1].Equals("simulate", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    if (parts.Length == 4)
                     {
                         JObject jo = new JObject();
-                        jo[JKeys.Generic.Target] = JKeys.RelayModule.TargetName;
-                        if(parts[1].Equals("open", StringComparison.InvariantCultureIgnoreCase))
+                        jo[JKeys.Generic.Target] = JKeys.TempSensor.TargetName;
+                        jo[JKeys.Generic.Action] = "simulate";
+                        jo[JKeys.Generic.Name] = parts[2];
+                        if (float.TryParse(parts[3], out float val))
                         {
-                            jo[JKeys.Generic.Action] = JKeys.RelayModule.ActionOpenChannel;
-                        }
-                        else if(parts[1].Equals("close", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            jo[JKeys.Generic.Action] = JKeys.RelayModule.ActionCloseChannel;
-                        }
-                        else
-                        {
-                            NSULog.Error(LogTag, $"Invalid command: {cmd}");
-                        }
-                        byte b;
-                        if(byte.TryParse(parts[2], out b))
-                        {
-                            jo[JKeys.Generic.Value] = b;
+                            jo[JKeys.Generic.Value] = val;
                             SendToArduino(jo);
                         }
                     }
@@ -147,38 +198,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     {
                         NSULog.Error(LogTag, $"Invalid command: {cmd}");
                     }
-                    return;
                 }
-
-                if(cmd.StartsWith(JKeys.TempSensor.TargetName, StringComparison.InvariantCultureIgnoreCase))
-                {
-                    string[] parts = cmd.Split(' ');
-                    if (parts.Length > 2)
-                    {
-                        if (parts[1].Equals("simulate", StringComparison.InvariantCultureIgnoreCase))
-                        {
-                            if (parts.Length == 4)
-                            {
-                                JObject jo = new JObject();
-                                jo[JKeys.Generic.Target] = JKeys.TempSensor.TargetName;
-                                jo[JKeys.Generic.Action] = "simulate";
-                                jo[JKeys.Generic.Name] = parts[2];
-                                if (float.TryParse(parts[3], out float val))
-                                {
-                                    jo[JKeys.Generic.Value] = val;
-                                    SendToArduino(jo);
-                                }
-                            }
-                            else
-                            {
-                                NSULog.Error(LogTag, $"Invalid command: {cmd}");
-                            }
-                        }
-                    }
-                    return;
-                }
-
-                NSULog.Info("UserCMD", $"Unknown command: '{cmd}'");
             }
         }
 

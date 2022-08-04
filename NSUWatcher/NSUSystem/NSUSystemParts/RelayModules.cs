@@ -11,7 +11,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
     {
         readonly string LogTag = "RelayModules";
 
-        List<RelayModule> modules = new List<RelayModule>();
+        readonly List<RelayModule> _modules = new List<RelayModule>();
         public RelayModules(NSUSys sys, PartsTypes type)
             : base(sys, type)
         {
@@ -27,20 +27,25 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             switch ((string)data[JKeys.Generic.Action])
             {
                 case JKeys.Syscmd.Snapshot:
-                    if(data.Property(JKeys.Generic.Result) == null)
-                    {
-                        var rm = new RelayModule();
-                        rm.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, RelayModule.INVALID_VALUE);
-                        rm.Enabled = JSonValueOrDefault(data, JKeys.Generic.Enabled, false);
-                        rm.ActiveLow = JSonValueOrDefault(data, JKeys.RelayModule.ActiveLow, false);
-                        rm.Inverted = JSonValueOrDefault(data, JKeys.RelayModule.Inverted, false);
-                        if(JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
-                            rm.Flags = JSonValueOrDefault(data, JKeys.RelayModule.Flags, (byte)0);
-
-                        rm.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.RelayModules));
-                        modules.Add(rm);
-                    }
+                    ProcessActionSnapshot(data);
                     break;
+            }
+        }
+
+        private void ProcessActionSnapshot(JObject data)
+        {
+            if (data.Property(JKeys.Generic.Result) == null)
+            {
+                var rm = new RelayModule();
+                rm.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, RelayModule.INVALID_VALUE);
+                rm.Enabled = JSonValueOrDefault(data, JKeys.Generic.Enabled, false);
+                rm.ActiveLow = JSonValueOrDefault(data, JKeys.RelayModule.ActiveLow, false);
+                rm.Inverted = JSonValueOrDefault(data, JKeys.RelayModule.Inverted, false);
+                if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
+                    rm.Flags = JSonValueOrDefault(data, JKeys.RelayModule.Flags, (byte)0);
+
+                rm.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.RelayModules));
+                _modules.Add(rm);
             }
         }
 
@@ -51,7 +56,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void Clear()
         {
-            modules.Clear();
+            _modules.Clear();
         }
     }
 }

@@ -6,15 +6,17 @@ using NSUWatcher.NSUWatcherNet;
 using MySql.Data.MySqlClient;
 using NSU.Shared;
 using Newtonsoft.Json.Linq;
+using System.Linq;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
     public class Switches : NSUSysPartsBase
     {
         readonly string LogTag = "Switches";
-        List<Switch> switches = new List<Switch>();
-        Switch sw;
-		public Switches(NSUSys sys, PartsTypes type)
+
+        private readonly List<Switch> _switches = new List<Switch>();
+
+        public Switches(NSUSys sys, PartsTypes type)
             : base(sys, type)
         {
         }
@@ -27,26 +29,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private Switch FindSwitch(string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return null;
-            for (int i = 0; i < switches.Count; i++)
-            {
-                var swth = (Switch)switches[i];
-                if (swth.Name.Equals(name))
-                    return swth;
-            }
-            return null;
+            return _switches.FirstOrDefault(x => x.Name == name);
         }
 
-        private Switch FindSwitch(byte cfg_pos)
+        private Switch FindSwitch(byte cfgPos)
         {
-            if (cfg_pos == Switch.INVALID_VALUE) return null;
-            for (int i = 0; i < switches.Count; i++)
-            {
-                var swth = (Switch)switches[i];
-                if (swth.ConfigPos == cfg_pos)
-                    return swth;
-            }
-            return null;
+            return _switches.FirstOrDefault(x => x.ConfigPos == cfgPos);
         }
 
         private int GetDBID(string name, bool insertIfNotExists = true)
@@ -54,29 +42,22 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             int result = -1;
             if (!name.Equals(string.Empty) && !name.Equals("N"))
             {
-                lock (nsusys.MySQLLock)
+                using (MySqlCommand cmd = nsusys.GetMySqlCmd())
                 {
-                    try
+                    cmd.CommandText = "SELECT id FROM `status_names` WHERE `type`='switch' AND `name`=@name";
+                    cmd.Parameters.AddWithValue("@name", name);
+                    var dbid = cmd.ExecuteScalar();
+                    if (dbid == null && insertIfNotExists)
                     {
-                        using (MySqlCommand cmd = nsusys.GetMySqlCmd())
-                        {
-                            cmd.CommandText = string.Format("SELECT id FROM `status_names` WHERE `type`='switch' AND `name`='{0}';", name);
-                            var dbid = cmd.ExecuteScalar();
-                            if (dbid == null && insertIfNotExists)
-                            {
-                                cmd.CommandText = string.Format("INSERT INTO `status_names`(`type`, `name`) VALUES('switch', '{0}');", name);
-                                cmd.ExecuteNonQuery();
-                                result = (int)cmd.LastInsertedId;
-                            }
-                            else
-                            {
-                                result = (int)dbid;
-                            }
-                        }
+                        cmd.CommandText = "INSERT INTO `status_names`(`type`, `name`) VALUES('switch', @name);";
+                        //parameter is the same from select command
+                        cmd.Prepare();
+                        cmd.ExecuteNonQuery();
+                        result = (int)cmd.LastInsertedId;
                     }
-                    catch (Exception e)
+                    else
                     {
-                        NSULog.Exception(LogTag, "GetDBID('" + name + "') - " + e);
+                        result = (int)dbid;
                     }
                 }
             }
@@ -85,22 +66,14 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private void InsertStatusValue(int dbid, int value)
         {
-            if (dbid == -1)
-                return;
-            lock (nsusys.MySQLLock)
+            if (dbid == -1) return;
+
+            using (MySqlCommand cmd = nsusys.GetMySqlCmd())
             {
-                try
-                {
-                    using (MySqlCommand cmd = nsusys.GetMySqlCmd())
-                    {
-                        cmd.CommandText = string.Format("INSERT INTO `status` (`sid`, `value`) VALUES({0}, {1});", dbid, value);
-                        cmd.ExecuteNonQuery();
-                    }
-                }
-                catch (Exception e)
-                {
-                    NSULog.Exception(LogTag, string.Format("InsertStatusValue((dbid){0}, (value){1}) - {2}", dbid, value, e));
-                }
+                cmd.CommandText = "INSERT INTO `status` (`sid`, `value`) VALUES(@sid, @value);";
+                cmd.Parameters.AddWithValue("@sid", dbid);
+                cmd.Parameters.AddWithValue("@value", value);
+                cmd.ExecuteNonQuery();
             }
         }
 
@@ -108,6 +81,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             try
             {
+                Switch sw;
                 string act = (string)data[JKeys.Generic.Action];
                 switch (act)
                 {
@@ -131,17 +105,16 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                             sw.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.Switches));
                             sw.OnStatusChanged += Switch_OnStatusChanged;
                             sw.OnClicked += Switch_OnClicked;
-                            switches.Add(sw);
+                            _switches.Add(sw);
                         }
                         else
                         {
                             if (((string)data[JKeys.Generic.Result]).Equals(JKeys.Result.Done))
                             {
-                                foreach (var item in switches)
+                                foreach (var item in _switches)
                                 {
                                     item.DbId = GetDBID(item.Name);
-                                    //update status
-                                    InsertStatusValue(sw.DbId, (int)sw.Status);
+                                    InsertStatusValue(item.DbId, (int)item.Status);
                                 }
                             }
                         }
@@ -157,7 +130,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         break;
                 }
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 NSULog.Exception(LogTag, e.Message + "\r\n" + e.StackTrace.ToString());
             }
@@ -167,11 +140,10 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             try
             {
-                Switch sw;
                 switch ((string)data[JKeys.Generic.Action])
                 {
                     case JKeys.Action.Click:
-                        sw = FindSwitch((string)data[JKeys.Generic.Name]);
+                        Switch sw = FindSwitch((string)data[JKeys.Generic.Name]);
                         if (sw != null)
                         {
                             NetClientRequirements req = NetClientRequirements.CreateStandart();
@@ -201,40 +173,46 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             catch (Exception ex)
             {
                 NSULog.Exception(LogTag, "ParseNetworkData() - " + ex.ToString());
-                var jo = new JObject();
-                jo.Add(JKeys.Generic.Target, JKeys.Switch.TargetName);
+                var jo = new JObject
+                {
+                    [JKeys.Generic.Target] = JKeys.Switch.TargetName,
+                    [JKeys.Generic.Result] = false,
+                    [JKeys.Generic.ErrCode] = "exception",
+                    [JKeys.Generic.Message] = ex.Message
+                };
                 jo = nsusys.SetLastCmdID(clientData, jo);
-                jo.Add(JKeys.Generic.Result, false);
-                jo.Add(JKeys.Generic.ErrCode, "exception");
-                jo.Add(JKeys.Generic.Message, ex.Message);
                 nsusys.SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo, string.Empty);
             }
         }
 
         public override void Clear()
         {
-            switches.Clear();
+            _switches.Clear();
         }
 
         private void Switch_OnStatusChanged(object sender, SwitchStatusChangedEventArgs e)
         {
             InsertStatusValue((sender as Switch).DbId, (int)e.Status);
-            var jo = new JObject();
-            jo[JKeys.Generic.Target] = JKeys.Switch.TargetName;
-            jo[JKeys.Generic.Action] = JKeys.Action.Info;
-            jo[JKeys.Generic.Name] = (sender as Switch).Name;
-            jo[JKeys.Generic.Status] = e.Status.ToString();
-            jo[JKeys.Switch.IsForced] = e.IsForced;
+            var jo = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.Switch.TargetName,
+                [JKeys.Generic.Action] = JKeys.Action.Info,
+                [JKeys.Generic.Name] = (sender as Switch).Name,
+                [JKeys.Generic.Status] = e.Status.ToString(),
+                [JKeys.Switch.IsForced] = e.IsForced
+            };
             SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
         }
 
         private void Switch_OnClicked(object sender, EventArgs e)
         {
             NSULog.Debug(LogTag, $"Switch_OnClicked(). Name: {(sender as Switch).Name}. Sending to Arduino.");
-            var vs = new JObject();
-            vs.Add(JKeys.Generic.Target, JKeys.Switch.TargetName);
-            vs.Add(JKeys.Generic.Action, JKeys.Action.Click);
-            vs.Add(JKeys.Generic.Name, (sender as Switch).Name);
+            var vs = new JObject
+            {
+                { JKeys.Generic.Target, JKeys.Switch.TargetName },
+                { JKeys.Generic.Action, JKeys.Action.Click },
+                { JKeys.Generic.Name, (sender as Switch).Name }
+            };
             SendToArduino(vs);
         }
     }

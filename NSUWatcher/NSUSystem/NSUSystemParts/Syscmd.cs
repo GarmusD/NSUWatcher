@@ -12,19 +12,22 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
     {
         readonly string LogTag = "SystemCMD";
 
-        public Syscmd(NSUSys sys, PartsTypes part):base(sys, part)
+        private readonly NSUSys _nsuSys;
+
+        public Syscmd(NSUSys sys, PartsTypes part) : base(sys, part)
         {
-        }        
+            _nsuSys = sys;
+        }
 
         public override string[] RegisterTargets()
         {
-            return new string[] {JKeys.Syscmd.TargetName, "SYSCMD:" };
+            return new string[] { JKeys.Syscmd.TargetName, "SYSCMD:" };
         }
 
         public override void ProccessArduinoData(JObject data)
         {
             switch ((string)data[JKeys.Generic.Action])
-            {                
+            {
                 case JKeys.Syscmd.SystemStatus:
                     switch ((string)data[JKeys.Generic.Value])
                     {
@@ -33,10 +36,10 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                             break;
                         case JKeys.Syscmd.ReadyPauseBoot:
                             nsusys.ArduinoStatus = MCUStatus.BootPauseReady;
-                            if(Config.Instance().ArduinoPauseBoot)
+                            if (_nsuSys.Config.ArduinoPauseBoot)
                             {
                                 //Clear pause boot flag for next boot
-                                Config.Instance().ArduinoPauseBoot = false;
+                                _nsuSys.Config.ArduinoPauseBoot = false;
                                 PauseBoot();
                             }
                             break;
@@ -56,20 +59,17 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     break;
                 case JKeys.Syscmd.Snapshot:
                     var res = (string)data[JKeys.Generic.Result];
-                    if(res.Equals(JKeys.Result.Done))
+                    if (res.Equals(JKeys.Result.Done))
                     {
-                        foreach(var item in nsusys.NSUParts)
+                        foreach (var item in nsusys.NSUParts)
                         {
-                            if(item.PartType != PartsTypes.System)
+                            try
                             {
-                                try
-                                {
-                                    item.Part.ProccessArduinoData(data);
-                                }
-                                catch(Exception ex)
-                                {
-                                    NSULog.Debug(LogTag, item.PartType.ToString() + " Exception: " + ex);
-                                }
+                                item.Part.ProccessArduinoData(data);
+                            }
+                            catch (Exception ex)
+                            {
+                                NSULog.Debug(LogTag, item.PartType.ToString() + " Exception: " + ex);
                             }
                         }
                         nsusys.XMLConfig.Save();
@@ -97,7 +97,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         public override void ProccessNetworkData(NetClientData clientData, JObject data)
         {
             switch ((string)data[JKeys.Generic.Action])
-            {                
+            {
                 case JKeys.Syscmd.Snapshot:
                     ActionSnapshot(clientData);
                     break;
@@ -111,38 +111,39 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     ActionSetPushID(clientData, data);
                     break;
             }
-        }        
+        }
 
         private void SetArduinoClock()
         {
             if (nsusys.SystemTime.TimeIsOk && nsusys.ArduinoStatus == MCUStatus.Running)
             {
                 NSULog.Debug(LogTag, "Setting time for MCU...");
-                var vs = new JObject();
-                vs.Add(JKeys.Generic.Target, JKeys.Syscmd.TargetName);
-                vs.Add(JKeys.Generic.Action, JKeys.Syscmd.SetTime);
-
                 DateTime dt = DateTime.Now;
-                vs.Add(JKeys.Syscmd.Year, dt.Year);
-                vs.Add(JKeys.Syscmd.Month, dt.Month);
-                vs.Add(JKeys.Syscmd.Day, dt.Day);
-                vs.Add(JKeys.Syscmd.Hour, dt.Hour);
-                vs.Add(JKeys.Syscmd.Minute, dt.Minute);
-                vs.Add(JKeys.Syscmd.Second, dt.Second);
+                var vs = new JObject
+                {
+                    [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
+                    [JKeys.Generic.Action] = JKeys.Syscmd.SetTime,
+                    [JKeys.Syscmd.Year] = dt.Year,
+                    [JKeys.Syscmd.Month] = dt.Month,
+                    [JKeys.Syscmd.Day] = dt.Day,
+                    [JKeys.Syscmd.Hour] = dt.Hour,
+                    [JKeys.Syscmd.Minute] = dt.Minute,
+                    [JKeys.Syscmd.Second] = dt.Second
+                };
                 SendToArduino(vs);
             }
             else
             {
-                NSULog.Debug(LogTag, $"Cant set time for MCU: [nsusys.SystemTime.TimeIsOk: {nsusys.SystemTime.TimeIsOk}, nsusys.ArduinoStatus: {nsusys.ArduinoStatus.ToString()}]");
+                NSULog.Debug(LogTag, $"Can't set time for MCU: [nsusys.SystemTime.TimeIsOk: {nsusys.SystemTime.TimeIsOk}, nsusys.ArduinoStatus: {nsusys.ArduinoStatus}]");
             }
         }
 
         private void ExecuteUserCommands()
         {
-            foreach (string item in Config.Instance().CmdLines)
+            foreach (string item in _nsuSys.Config.UserCommands)
             {
                 NSULog.Debug(LogTag, "UserCmd: " + item);
-                SendToArduino("user "+item);
+                SendToArduino("user " + item);
             }
         }
 
@@ -151,21 +152,25 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             //Clear before new snapshot
             foreach (var item in nsusys.NSUParts)
             {
-                item.Part.Clear();                
+                item.Part.Clear();
             }
             nsusys.XMLConfig.Clear();
 
-            var vs = new JObject();
-            vs.Add(JKeys.Generic.Target, JKeys.Syscmd.TargetName);
-            vs.Add(JKeys.Generic.Action, JKeys.Syscmd.Snapshot);
+            var vs = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
+                [JKeys.Generic.Action] = JKeys.Syscmd.Snapshot
+            };
             SendToArduino(vs);
         }
 
         private void PauseBoot()
         {
-            var vs = new JObject();
-            vs.Add(JKeys.Generic.Target, JKeys.Syscmd.TargetName);
-            vs.Add(JKeys.Generic.Action, JKeys.Syscmd.PauseBoot);
+            var vs = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
+                [JKeys.Generic.Action] = JKeys.Syscmd.PauseBoot
+            };
             SendToArduino(vs);
         }
 
@@ -175,12 +180,14 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             if (NetClientRequirements.Check(req, clientData))
             {
                 nsusys.XMLConfig.Save();
-                var jo = new JObject();
-                jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                jo[JKeys.Generic.Action] = JKeys.Syscmd.Snapshot;
-                jo[JKeys.Generic.Result] = JKeys.Result.Ok;
+                var jo = new JObject
+                {
+                    [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
+                    [JKeys.Generic.Action] = JKeys.Syscmd.Snapshot,
+                    [JKeys.Generic.Result] = JKeys.Result.Ok,
+                    [JKeys.Generic.Value] = nsusys.XMLConfig.GetXDocAsString()
+                };
                 nsusys.SetLastCmdID(clientData, jo);
-                jo[JKeys.Generic.Value] = nsusys.XMLConfig.GetXDocAsString();
                 nsusys.SendToClient(req, jo);
                 clientData.IsReady = true;
             }
@@ -194,10 +201,10 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 case JKeys.ActionLogin.LoginWithCredentials:
                     NSULog.Debug(LogTag, "ActionLogin: Logging with Credentials.");
                     clientData.UserData = nsusys.Users.Login((string)data[JKeys.ActionLogin.UserName], (string)data[JKeys.ActionLogin.Password]);
-                    if(clientData.UserData != null)
+                    if (clientData.UserData != null)
                     {
                         clientData.LoggedIn = true;
-                        if(data.Property(JKeys.UserInfo.UserAccepts) != null)
+                        if (data.Property(JKeys.UserInfo.UserAccepts) != null)
                         {
                             clientData.ClientAccepts = (NetClientAccepts)(int)data[JKeys.UserInfo.UserAccepts];
                         }
@@ -227,46 +234,51 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     }
                     return;
                 case JKeys.ActionLogin.LoginWithHash:
-                    NSULog.Debug(LogTag, "ActionLogin: Logging in with Hash");
-                    clientData.UserData = nsusys.Users.LoginUsingHash((string)data[JKeys.ActionLogin.DeviceID], (string)data[JKeys.ActionLogin.Hash]);
-                    if (clientData.UserData != null)
-                    {
-                        clientData.LoggedIn = true;
-                        if (data.Property(JKeys.UserInfo.UserAccepts) != null)
-                        {
-                            clientData.ClientAccepts = (NetClientAccepts)(int)data[JKeys.UserInfo.UserAccepts];
-                        }
-                        JObject jo = new JObject();
-                        jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                        jo[JKeys.Generic.Action] = JKeys.SystemAction.Login;
-                        jo[JKeys.Generic.Result] = JKeys.Result.Ok;
-                        jo[JKeys.ActionLogin.DeviceID] = clientData.UserData.DeviceId;
-                        jo[JKeys.ActionLogin.Hash] = clientData.UserData.Hash;
-                        jo[JKeys.ActionLogin.NeedChangePassword] = clientData.UserData.NeedChangePassword;
-                        nsusys.SetLastCmdID(clientData, jo);
-                        SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                    }
-                    else
-                    {
-                        clientData.LoggedIn = false;
-                        clientData.ClientAccepts = NetClientAccepts.None;
-                        clientData.IsReady = false;
-
-                        JObject jo = new JObject();
-                        jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                        jo[JKeys.Generic.Action] = JKeys.SystemAction.Login;
-                        jo[JKeys.Generic.Result] = JKeys.Result.Error;
-                        jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.Login.InvalidHash;
-                        nsusys.SetLastCmdID(clientData, jo);
-                        SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                    }
+                    ProcessActionLoginWithHash(clientData, data);
                     return;
+            }
+        }
+
+        private void ProcessActionLoginWithHash(NetClientData clientData, JObject data)
+        {
+            NSULog.Debug(LogTag, "ActionLogin: Logging in with Hash");
+            clientData.UserData = nsusys.Users.LoginUsingHash((string)data[JKeys.ActionLogin.DeviceID], (string)data[JKeys.ActionLogin.Hash]);
+            if (clientData.UserData != null)
+            {
+                clientData.LoggedIn = true;
+                if (data.Property(JKeys.UserInfo.UserAccepts) != null)
+                {
+                    clientData.ClientAccepts = (NetClientAccepts)(int)data[JKeys.UserInfo.UserAccepts];
+                }
+                JObject jo = new JObject();
+                jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
+                jo[JKeys.Generic.Action] = JKeys.SystemAction.Login;
+                jo[JKeys.Generic.Result] = JKeys.Result.Ok;
+                jo[JKeys.ActionLogin.DeviceID] = clientData.UserData.DeviceId;
+                jo[JKeys.ActionLogin.Hash] = clientData.UserData.Hash;
+                jo[JKeys.ActionLogin.NeedChangePassword] = clientData.UserData.NeedChangePassword;
+                nsusys.SetLastCmdID(clientData, jo);
+                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
+            }
+            else
+            {
+                clientData.LoggedIn = false;
+                clientData.ClientAccepts = NetClientAccepts.None;
+                clientData.IsReady = false;
+
+                JObject jo = new JObject();
+                jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
+                jo[JKeys.Generic.Action] = JKeys.SystemAction.Login;
+                jo[JKeys.Generic.Result] = JKeys.Result.Error;
+                jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.Login.InvalidHash;
+                nsusys.SetLastCmdID(clientData, jo);
+                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
             }
         }
 
         private void ActionSetPushID(NetClientData clientData, JObject data)
         {
-            if(!clientData.LoggedIn)
+            if (!clientData.LoggedIn)
             {
                 JObject jo = JResponses.ResultError(JKeys.Syscmd.TargetName, JKeys.SystemAction.PushID, "authentication_required");
                 nsusys.SetLastCmdID(clientData, jo);
@@ -279,7 +291,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 if (!string.IsNullOrEmpty(pid) && nsusys.PushNotifications.ValidateDeviceType(clientData.UserData.DeviceType))
                 {
                     var ret = nsusys.Users.SetPushID(clientData.UserData, pid);
-                    if(!string.IsNullOrEmpty(ret))
+                    if (!string.IsNullOrEmpty(ret))
                     {
                         var jo = JResponses.ResultError(JKeys.Syscmd.TargetName, JKeys.SystemAction.PushID, ret);
                     }

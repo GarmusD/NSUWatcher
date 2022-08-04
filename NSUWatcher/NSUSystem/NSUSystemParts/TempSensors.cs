@@ -7,6 +7,7 @@ using System.Collections;
 using NSU.Shared;
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json.Linq;
+using System.Linq;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -15,9 +16,8 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
     {
         readonly string LogTag = "TempSensors";
 
-        List<TempSensor> Sensors = new List<TempSensor>();
-        BitArray ConfigIDs = new BitArray(PartsConsts.MAX_TEMP_SENSORS);
-        TempSensor sensor;
+        private readonly List<TempSensor> _sensors = new List<TempSensor>();
+        readonly BitArray _configIDs = new BitArray(PartsConsts.MAX_TEMP_SENSORS);
 
         public TempSensors(NSUSys sys, PartsTypes type) : base(sys, type)
         {
@@ -30,9 +30,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public void AddSensor(TempSensor value)
         {
-            if (Sensors.Count < PartsConsts.MAX_TEMP_SENSORS)
+            if (_sensors.Count < PartsConsts.MAX_TEMP_SENSORS)
             {
-                Sensors.Add(value);
+                _sensors.Add(value);
             }
             else
             {
@@ -42,42 +42,19 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public TempSensor FindSensor(string name)
         {
-            for (int i = 0; i < Sensors.Count; i++)
-            {
-                sensor = (TempSensor)Sensors[i];
-                if (sensor != null && sensor.Name.Equals(name))
-                {
-                    return sensor;
-                }
-            }
-            return null;
+            return _sensors.Find(x => x.Name == name);
         }
 
-        public TempSensor FindSensor(byte[] saddr)
+        public TempSensor FindSensor(byte[] addr)
         {
-            if (!IsAddrValid(saddr)) return null;
-            foreach (var item in Sensors)
-            {
-                if (item.CompareAddr(saddr))
-                    return item;
-            }            
-            return null;
+            return _sensors.Find(x => x.CompareAddr(addr));
         }
 
-        public TempSensor FindSensor(byte config_pos)
+        public TempSensor FindSensor(byte cfgPos)
         {
-            for (int i = 0; i < Sensors.Count; i++)
-            {
-                sensor = (TempSensor)Sensors[i];
-                if (sensor != null && sensor.ConfigPos == config_pos)
-                {
-                    return sensor;
-                }
-            }
-            return null;
+            return _sensors.Find(x => x.ConfigPos == cfgPos);
         }
 
-        //public void UpdateSensorInfo (byte[] saddr, string new_name, int new_interval)
         public TempSensor UpdateSensorInfo(TempSensor new_info)
         {
             if (new_info == null)
@@ -86,7 +63,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 return null;
             }
 
-            sensor = FindSensor(new_info.SensorID);
+            var sensor = FindSensor(new_info.SensorID);
             if (sensor != null)
             {
                 if (!new_info.Name.Equals(sensor.Name))
@@ -147,59 +124,28 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             return sensor;
         }
 
-        private void SetTemperatureDB(TempSensor ts, float value)
+        private void InsertTemperatureToDB(TempSensor ts, float value)
         {
-            if (ts != null)
+            TimeSpan tspan = DateTime.Now.Subtract(ts.LastDBLog);
+            if (tspan.Minutes > 2)
             {
-                if (ts.DBId != -1)
+                using (MySqlCommand cmd = nsusys.GetMySqlCmd())
                 {
-                    TimeSpan tspan = DateTime.Now.Subtract(ts.LastDBLog);
-                    if (tspan.Minutes > 2)
-                    {
-                        lock (nsusys.MySQLLock)
-                        {
-                            using (MySqlCommand cmd = nsusys.GetMySqlCmd())
-                            {
-                                cmd.Parameters.Clear();
-                                cmd.CommandText = "INSERT INTO `temperatures` (`sid`, `value`) VALUES (@sid, @temp)";
-                                cmd.Parameters.AddWithValue("@sid", ts.DBId);
-                                cmd.Parameters.AddWithValue("@temp", value);
-                                try
-                                {
-                                    cmd.ExecuteNonQuery();
-                                    //NSULog.Debug(LogTag, "TSensor successfuly updated to DB.");
-                                }
-                                catch (Exception e)
-                                {
-                                    NSULog.Exception(LogTag, "SetTemperature() MySQL error: " + e);
-                                }
-                                ts.UpdateDBTime();
-                            }
-                        }
-                    }
+                    if (cmd == null) return;
+                    cmd.Parameters.Clear();
+                    cmd.CommandText = "INSERT INTO `temperatures` (`sid`, `value`) VALUES (@sid, @temp)";
+                    cmd.Parameters.AddWithValue("@sid", ts.DBId);
+                    cmd.Parameters.AddWithValue("@temp", value);
+                    cmd.ExecuteNonQuery();
+                    ts.UpdateDBTime();
                 }
-                else
-                {
-                    NSULog.Error(LogTag, "TSensors.SetTemperature() - Sensor DBId is -1");
-                }
-            }
-            else
-            {
-                NSULog.Error(LogTag, "SetTemperature() - TSensorInfo is null.");
             }
         }
 
 
         bool IsAddrValid(byte[] addr)
         {
-            for (int i = 0; i < 8; i++)
-            {
-                if (addr[i] != 0)
-                {
-                    return true;
-                }
-            }
-            return false;
+            return !addr.All(x => x == 0);
         }
 
         int InsertNewTSensorName(string name)
@@ -209,6 +155,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             {
                 using (MySqlCommand mycmd = nsusys.GetMySqlCmd())
                 {
+                    if (mycmd == null) return db_id;
                     mycmd.CommandText = string.Format("INSERT INTO `tsensor_names`(`type`, `name`) VALUES('ds18b20', '{0}')", name);
                     mycmd.ExecuteNonQuery();
                     db_id = (int)mycmd.LastInsertedId;
@@ -226,70 +173,65 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             int result = -1;
             if (!name.Equals(string.Empty) && !name.Equals("N"))
             {
-                lock (nsusys.MySQLLock)
+                using (MySqlCommand cmd = nsusys.GetMySqlCmd())
                 {
-                    using (MySqlCommand cmd = nsusys.GetMySqlCmd())
+                    cmd.CommandText = string.Format("SELECT id FROM `tsensor_names` WHERE `type`='ds18b20' AND `name`='{0}';", name);
+                    var dbid = cmd.ExecuteScalar();
+                    if (dbid == null)
                     {
-                        cmd.CommandText = string.Format("SELECT id FROM `tsensor_names` WHERE `type`='ds18b20' AND `name`='{0}';", name);
-                        var dbid = cmd.ExecuteScalar();
-                        if (dbid == null)
-                        {
-                            result = InsertNewTSensorName(name);
-                        }
-                        else
-                        {
-                            result = (int)dbid;
-                        }
+                        result = InsertNewTSensorName(name);
+                    }
+                    else
+                    {
+                        result = (int)dbid;
                     }
                 }
             }
             return result;
         }
 
-        private byte GetFirstFreeConfigID()
+        private int GetFirstFreeConfigID()
         {
-            for (int i = 0; i < ConfigIDs.Count; i++)
-            {
-                if (!ConfigIDs.Get(i))
-                    return (byte)i;
-            }
+            for (int i = 0; i < _configIDs.Count; i++)
+                if (!_configIDs[i])
+                    return i;
             return NSUPartBase.INVALID_VALUE;
         }
 
         private void UpdateConfigIDs()
         {
-            for (int i = 0; i < Sensors.Count; i++)
+            foreach (var sensor in _sensors)
             {
-                sensor = (TempSensor)Sensors[i];
                 if (sensor.ConfigPos != NSUPartBase.INVALID_VALUE)
-                {
-                    ConfigIDs.Set(sensor.ConfigPos, true);
-                }
+                    _configIDs[sensor.ConfigPos] = true;
             }
-            for (int i = 0; i < Sensors.Count; i++)
+
+            var invCfgPosList = _sensors.FindAll(x => (x.ConfigPos == NSUPartBase.INVALID_VALUE && !TempSensor.IsAddressNull(x))).ToList();
+            foreach (var sensor in invCfgPosList)
             {
-                sensor = (TempSensor)Sensors[i];
-                if (sensor.ConfigPos == NSUPartBase.INVALID_VALUE && !TempSensor.IsAddressNull(sensor))
+                int freePos = GetFirstFreeConfigID();
+                if (freePos != NSUPartBase.INVALID_VALUE)
                 {
-                    byte free_id = GetFirstFreeConfigID();
-                    if (free_id != NSUPartBase.INVALID_VALUE)
-                    {
-                        NSULog.Error(LogTag, "Sensor with invalid config_pos found - " + TempSensor.AddrToString(sensor.SensorID));
-                        sensor.ConfigPos = free_id;
-                        ConfigIDs.Set(free_id, true);
-                    }
+                    sensor.ConfigPos = freePos;
+                    _configIDs[freePos] = true;
+                    NSULog.Error(LogTag, $"Sensor '{TempSensor.AddrToString(sensor.SensorID)}' with invalid ConfigPos founded. New ConfigPos is {freePos}.");
+                }
+                else
+                {
+                    NSULog.Error(LogTag, $"No more free indexes for config is left. Cannot assign ConfigPos to a sensor '{TempSensor.AddrToString(sensor.SensorID)}'");
                 }
             }
         }
 
         public override void ProccessNetworkData(NetClientData clientData, JObject data)
         {
+            //TODO Configure sensor from "outside"
             if (data.Property(JKeys.Generic.Action) == null)
             {
-
+                
             }
-            var vs = new JObject();
-            vs.Add(JKeys.Generic.CommandID, (string)data[JKeys.Generic.CommandID]);
+            var jo = new JObject();
+            jo.Add(JKeys.Generic.CommandID, (string)data[JKeys.Generic.CommandID]);
             switch ((string)data[JKeys.Generic.Action])
             {
                 case JKeys.Action.Get:
@@ -304,27 +246,21 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             switch ((string)data[JKeys.Generic.Action])
             {
                 case JKeys.Timer.ActionTimer:
-                    foreach (var item in Sensors)
+                    foreach (var item in _sensors.Where(item => item.DBId != -1))
                     {
-                        if (item.DBId != -1)
-                        {
-                            SetTemperatureDB(item, item.Temperature);
-                        }
+                        InsertTemperatureToDB(item, item.Temperature);
                     }
+
                     break;
                 case JKeys.Action.Info:
-                    var ts = FindSensor(TempSensor.StringToAddr((string)data[JKeys.TempSensor.SensorID]));
-                    if (ts != null)
-                    {
-                        ts.ReadErrors = data.Property(JKeys.TempSensor.ReadErrors) != null ? (int)data[JKeys.TempSensor.ReadErrors] : 0;
-                        ts.Temperature = (float)data[JKeys.Generic.Value];
-                    }
+                    ProcessArdSetInfo(data);
                     break;
+
                 case JKeys.Action.Snapshot:
                     if (data.Property(JKeys.Generic.Result) != null &&
-                        ((string)data[JKeys.Generic.Result]).Equals(JKeys.Result.Done))
+                        ((string)data[JKeys.Generic.Result]) == JKeys.Result.Done)
                     {
-                        foreach (var item in Sensors)
+                        foreach (var item in _sensors)
                         {
                             item.DBId = GetMySqlIDByName(item.Name);
                         }
@@ -336,38 +272,11 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         switch ((string)data[JKeys.Generic.Content])
                         {
                             case JKeys.TempSensor.ContentSystem:
-                                ts = new TempSensor();
-                                ts.SensorID = TempSensor.StringToAddr(JSonValueOrDefault(data, JKeys.TempSensor.SensorID, TempSensor.NullAddress));
-                                ts.Temperature = JSonValueOrDefault(data, JKeys.TempSensor.Temperature, 0.0f);
-                                ts.ReadErrors = JSonValueOrDefault(data, JKeys.TempSensor.ReadErrors, 0);
-                                ts.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
-                                Sensors.Add(ts);
+                                ProcessArdSnapshotSystemScan(data);
                                 break;
+
                             case JKeys.TempSensor.ContentConfig:
-                                ts = FindSensor(TempSensor.StringToAddr((string)data[JKeys.TempSensor.SensorID]));//NullAddress sensors is filtered here
-                                if (ts == null)
-                                {
-                                    ts = new TempSensor();
-                                    ts.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));                                    
-                                    if(!TempSensor.IsAddressNull(ts))
-                                        ts.NotFound = true;
-                                    Sensors.Add(ts);
-                                }
-                                else
-                                {
-                                    ts.NotFound = false;
-                                }
-                                ts.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, NSUPartBase.INVALID_VALUE);
-                                ts.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
-                                ts.SensorID = TempSensor.StringToAddr(JSonValueOrDefault(data, JKeys.TempSensor.SensorID, TempSensor.NullAddress));
-                                ts.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
-                                ts.Interval = JSonValueOrDefault(data, JKeys.TempSensor.Interval, 0);
-                                    
-                                //Add sensor events
-                                ts.OnEnabledChanged += TS_EnabledChanged;
-                                ts.OnIntervalChanged += TS_IntervalChanged;
-                                ts.OnNameChanged += TS_NameChanged;
-                                ts.OnTempChanged += TS_TempChanged;
+                                ProcessArdSnapshotConfig(data);
 
                                 break;
                         }
@@ -376,15 +285,64 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
+        private void ProcessArdSetInfo(JObject data)
+        {
+            var ts = FindSensor(TempSensor.StringToAddr((string)data[JKeys.TempSensor.SensorID]));
+            if (ts != null)
+            {
+                ts.ReadErrorCount = (int)(data[JKeys.TempSensor.ReadErrors] ?? 0);
+                ts.Temperature = (float)(data[JKeys.Generic.Value] ?? 0);
+            }
+        }
+
+        private void ProcessArdSnapshotSystemScan(JObject data)
+        {
+            var ts = new TempSensor();
+            ts.SensorID = TempSensor.StringToAddr(JSonValueOrDefault(data, JKeys.TempSensor.SensorID, TempSensor.NullAddress));
+            ts.Temperature = JSonValueOrDefault(data, JKeys.TempSensor.Temperature, 0.0f);
+            ts.ReadErrorCount = JSonValueOrDefault(data, JKeys.TempSensor.ReadErrors, 0);
+            ts.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
+            _sensors.Add(ts);
+        }
+
+        private void ProcessArdSnapshotConfig(JObject data)
+        {
+            var ts = FindSensor(TempSensor.StringToAddr((string)data[JKeys.TempSensor.SensorID]));//NullAddress sensors is filtered here
+            if (ts == null)
+            {
+                ts = new TempSensor();
+                ts.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
+                if (!TempSensor.IsAddressNull(ts))
+                    ts.NotFound = true;
+                _sensors.Add(ts);
+            }
+            else
+            {
+                ts.NotFound = false;
+            }
+            ts.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, NSUPartBase.INVALID_VALUE);
+            ts.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
+            ts.SensorID = TempSensor.StringToAddr(JSonValueOrDefault(data, JKeys.TempSensor.SensorID, TempSensor.NullAddress));
+            ts.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
+            ts.Interval = JSonValueOrDefault(data, JKeys.TempSensor.Interval, 0);
+
+            //Add sensor events
+            ts.OnEnabledChanged += TS_EnabledChanged;
+            ts.OnIntervalChanged += TS_IntervalChanged;
+            ts.OnNameChanged += TS_NameChanged;
+            ts.OnTempChanged += TS_TempChanged;
+        }
+
         private void TS_TempChanged(object sender, TempChangedEventArgs e)
         {
-            //SetTemperatureDB(sender, temp);
-            var vs = new JObject();
-            vs.Add(JKeys.Generic.Target, JKeys.TempSensor.TargetName);
-            vs.Add(JKeys.Generic.Action, JKeys.Action.Info);
-            vs.Add(JKeys.TempSensor.SensorID, TempSensor.AddrToString((sender as TempSensor).SensorID));
-            vs.Add(JKeys.Generic.Value, e.Temperature);
-            SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), vs);
+            var jo = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.TempSensor.TargetName,
+                [JKeys.Generic.Action] = JKeys.Action.Info,
+                [JKeys.TempSensor.SensorID] = TempSensor.AddrToString((sender as TempSensor).SensorID),
+                [JKeys.Generic.Value] = e.Temperature
+            };
+            SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
         }
 
         private void TS_NameChanged(object sender, NameChangedEventArgs e)
@@ -404,7 +362,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void Clear()
         {
-            Sensors.Clear();
+            _sensors.Clear();
         }
     }
 }

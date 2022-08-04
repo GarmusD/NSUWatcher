@@ -6,6 +6,7 @@ using NSUWatcher.NSUWatcherNet;
 using MySql.Data.MySqlClient;
 using NSU.Shared;
 using Newtonsoft.Json.Linq;
+using System.Linq;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -13,8 +14,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
     {
         readonly string LogTag = "TempTriggers";
 
-        List<TempTrigger> triggers = new List<TempTrigger>();
-        TempTrigger trg;
+        readonly List<TempTrigger> _triggers = new List<TempTrigger>();
 
         public TempTriggers(NSUSys sys, PartsTypes type)
             : base(sys, type)
@@ -23,28 +23,17 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override string[] RegisterTargets()
         {
-            return new string[]{JKeys.TempTrigger.TargetName, "TRIGGER:"};
+            return new string[] { JKeys.TempTrigger.TargetName, "TRIGGER:" };
         }
 
         private TempTrigger FindTrigger(string name)
         {
-            for (int i = 0; i < triggers.Count; i++)
-            {
-                if (triggers[i].Name.Equals(name)) return triggers[i];
-            }
-            return null;
+            return _triggers.FirstOrDefault(x => x.Name == name);
         }
 
-        private TempTrigger FindTrigger(int cfg_pos)
+        private TempTrigger FindTrigger(int cfgPos)
         {
-            if (cfg_pos != -1)
-            {
-                for (int i = 0; i < triggers.Count; i++)
-                {
-                    if (triggers[i].ConfigPos == cfg_pos) return triggers[i];
-                }
-            }
-            return null;
+            return _triggers.FirstOrDefault(x => x.ConfigPos == cfgPos);
         }
 
         int GetDBID(string name, bool insertIfNotExists = true)
@@ -52,33 +41,23 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             int result = -1;
             if (!name.Equals(string.Empty))
             {
-                lock (nsusys.MySQLLock)
+                using (var cmd = nsusys.GetMySqlCmd())
                 {
-                    try
+                    cmd.Parameters.Clear();
+                    cmd.CommandText = "SELECT id FROM `status_names` WHERE `type`='trigger' AND `name`=@name;";
+                    cmd.Parameters.Add("@name", MySqlDbType.VarChar).Value = name;
+                    var dbid = cmd.ExecuteScalar();
+                    if (dbid == null && insertIfNotExists)
                     {
-                        using (var cmd = nsusys.GetMySqlCmd())
-                        {
-                            cmd.Parameters.Clear();
-                            cmd.CommandText = "SELECT id FROM `status_names` WHERE `type`='trigger' AND `name`=@name;";
-                            cmd.Parameters.Add("@name", MySqlDbType.VarChar).Value = name;
-                            var dbid = cmd.ExecuteScalar();
-                            if (dbid == null && insertIfNotExists)
-                            {
-                                cmd.Parameters.Clear();
-                                cmd.CommandText = "INSERT INTO `status_names`(`type`, `name`) VALUES('trigger', @name);";
-                                cmd.Parameters.Add("@name", MySqlDbType.VarChar).Value = name;
-                                cmd.ExecuteNonQuery();
-                                result = (int)cmd.LastInsertedId;
-                            }
-                            else
-                            {
-                                result = (int)dbid;
-                            }
-                        }
+                        cmd.Parameters.Clear();
+                        cmd.CommandText = "INSERT INTO `status_names`(`type`, `name`) VALUES('trigger', @name);";
+                        cmd.Parameters.Add("@name", MySqlDbType.VarChar).Value = name;
+                        cmd.ExecuteNonQuery();
+                        result = (int)cmd.LastInsertedId;
                     }
-                    catch (Exception e)
+                    else
                     {
-                        NSULog.Exception(LogTag, "GetDBID('" + name + "') - " + e);
+                        result = (int)dbid;
                     }
                 }
             }
@@ -87,41 +66,32 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private void InsertStatusValue(int dbid, int value)
         {
-            lock (nsusys.MySQLLock)
+            if (dbid != -1)
             {
-                try
+                using (MySqlCommand cmd = nsusys.GetMySqlCmd())
                 {
-                    if (dbid != -1)
-                    {
-                        using (MySqlCommand cmd = nsusys.GetMySqlCmd())
-                        {
-                            cmd.CommandText = string.Format("INSERT INTO `status` (`sid`, `value`) VALUES({0}, {1});", dbid, value);
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    NSULog.Exception(LogTag, string.Format("InsertStatusValue((dbid){0}, (value){1}) - {2}", dbid, value, e));
+                    cmd.CommandText = string.Format("INSERT INTO `status` (`sid`, `value`) VALUES({0}, {1});", dbid, value);
+                    cmd.ExecuteNonQuery();
                 }
             }
         }
 
         public override void ProccessArduinoData(JObject data)
         {
+            TempTrigger trg;
             string act = (string)data[JKeys.Generic.Action];
-            switch(act)
+            switch (act)
             {
                 case JKeys.Syscmd.Snapshot:
-                    if(data.Property(JKeys.Generic.Result) == null)
+                    if (data.Property(JKeys.Generic.Result) == null)
                     {
                         trg = new TempTrigger();
                         trg.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, TempTrigger.INVALID_VALUE);
                         trg.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
                         trg.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
-                        
+
                         JArray ja = (JArray)data[JKeys.TempTrigger.Pieces];
-                        for (int i=0; i < TempTrigger.MAX_TEMPTRIGGERPIECES; i++)
+                        for (int i = 0; i < TempTrigger.MAX_TEMPTRIGGERPIECES; i++)
                         {
                             JObject jo = (JObject)ja[i];
                             trg[i].Enabled = Convert.ToBoolean((byte)jo[JKeys.Generic.Enabled]);
@@ -130,18 +100,18 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                             trg[i].Temperature = (float)jo[JKeys.TempTrigger.TriggerTemperature];
                             trg[i].Histeresis = (float)jo[JKeys.TempTrigger.TriggerHisteresis];
                         }
-                        if(JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
-                                trg.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Generic.Status, string.Empty), Status.UNKNOWN);
+                        if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
+                            trg.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Generic.Status, string.Empty), Status.UNKNOWN);
 
                         trg.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TempTriggers));
                         trg.OnStatusChanged += Trg_OnStatusChanged;
-                        triggers.Add(trg);
+                        _triggers.Add(trg);
                     }
                     else
                     {
                         if (((string)data[JKeys.Generic.Result]).Equals(JKeys.Result.Done))
                         {
-                            foreach (var item in triggers)
+                            foreach (var item in _triggers)
                             {
                                 item.DbID = GetDBID(item.Name);
                             }
@@ -150,7 +120,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     break;
                 case JKeys.Action.Info:
                     trg = FindTrigger((string)data[JKeys.Generic.Name]);
-                    if(trg != null)
+                    if (trg != null)
                     {
                         trg.Status = NSU.Shared.NSUUtils.Utils.GetStatusFromString(JSonValueOrDefault(data, JKeys.Generic.Status, string.Empty), Status.UNKNOWN);
                     }
@@ -162,11 +132,13 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             InsertStatusValue(sender.DbID, (int)sender.Status);
             var req = NetClientRequirements.CreateStandartAcceptInfo();
-            JObject jo = new JObject();
-            jo.Add(JKeys.Generic.Target, JKeys.TempTrigger.TargetName);
-            jo.Add(JKeys.Generic.Action, JKeys.Action.Info);
-            jo.Add(JKeys.Generic.Name, sender.Name);
-            jo.Add(JKeys.Generic.Status, sender.Status.ToString());
+            JObject jo = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.TempTrigger.TargetName,
+                [JKeys.Generic.Action] = JKeys.Action.Info,
+                [JKeys.Generic.Name] = sender.Name,
+                [JKeys.Generic.Status] = sender.Status.ToString()
+            };
             SendToClient(req, jo);
         }
 
@@ -181,7 +153,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 case JKeys.Action.Set:
                 case JKeys.Action.Clear:
                     //check user access
-                    
+
                     return;
                 default:
                     break;
@@ -190,7 +162,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void Clear()
         {
-            triggers.Clear();
+            _triggers.Clear();
         }
     }
 }

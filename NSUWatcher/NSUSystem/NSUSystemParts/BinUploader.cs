@@ -24,29 +24,34 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             Verify
         };
 
-        private string BinFilePath { get { return Path.Combine(Config.Instance().NSUWritablePath, BinFile); } }
+        private string BinFilePath => Path.Combine(_nsuSys.Config.NSUWritablePath, BinFile);
 
         private const string LogTag = "BinUploader";
         private const string BinFile = "nsu.bin";
-        private FileStream binfile;
-        private Process prc;
-        private NetClientData client;
-        private Stage stage = Stage.None;
-        private Timer retryTimer;
-        private int retryCount = 0;
+
+        private readonly NSUSys _nsuSys;
+        private FileStream _binFile;
+        private Process _process;
+        private NetClientData _clientData;
+        private Stage _stage = Stage.None;
+        private readonly Timer _retryTimer;
+        private int _retryCount = 0;
 
         public BinUploader(NSUSys sys, PartsTypes type)
             : base(sys, type)
         {
-            binfile = null;
-            retryTimer = new Timer(3000);
-            retryTimer.AutoReset = false;
-            retryTimer.Elapsed += RetryTimer_Elapsed;
+            _nsuSys = sys;
+            _binFile = null;
+            _retryTimer = new Timer(3000)
+            {
+                AutoReset = false
+            };
+            _retryTimer.Elapsed += RetryTimer_Elapsed;
         }
 
         private void RetryTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            if(stage == Stage.Write)
+            if (_stage == Stage.Write)
             {
                 NSULog.Debug(LogTag, "Flash retry timer elapsed.");
                 StartFlashProcess();
@@ -70,225 +75,215 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void ProccessNetworkData(NetClientData clientData, JObject data)
         {
-            
-            if(data.Property(JKeys.Generic.Action) != null)
+            if (data.Property(JKeys.Generic.Action) != null)
             {
                 string action = (string)data[JKeys.Generic.Action];
-                switch (action)
+                try
                 {
-                    case JKeys.BinUploader.Abort:
-                        if(stage == Stage.Upload)
-                        {
-                            try
-                            {
-                                CleanUp();
-                            }
-                            finally
-                            {
-                                stage = Stage.None;
-                                binfile = null;
-                                JObject jo = new JObject();
-                                jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                                jo[JKeys.Generic.Action] = JKeys.BinUploader.Abort;
-                                jo[JKeys.Generic.Result] = JKeys.Result.Ok;
-                                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                            }
-                        }
-                        break;
-                    case JKeys.BinUploader.StartUpload:
-                        try
-                        {
-                            if (stage == Stage.None)
-                            {
-                                CleanUp();
-                                binfile = new FileStream(BinFilePath, FileMode.Create, FileAccess.ReadWrite);
-                                stage = Stage.Upload;
-                                client = clientData;
-                                JObject jo = new JObject();
-                                jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                                jo[JKeys.Generic.Action] = JKeys.BinUploader.StartUpload;
-                                jo[JKeys.Generic.Result] = JKeys.Result.Ok;
-                                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                            }
-                            else
-                            {
-                                JObject jo = new JObject();
-                                jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                                jo[JKeys.Generic.Action] = JKeys.BinUploader.StartUpload;
-                                jo[JKeys.Generic.Result] = JKeys.Result.Error;
-                                jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.BinUploader.FlashInProgress;
-                                try
-                                {
-                                    NSULog.Debug(LogTag, "Another user is flashing???");
-                                    NSULog.Debug(LogTag, $"Current flassher: {client?.ToString()}");
-                                    NSULog.Debug(LogTag, $"New flasher: {clientData?.ToString()}");
-                                }
-                                finally { }
-                                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                            }
-                        }
-                        catch(Exception ex)
-                        {
-                            CleanUp();
-                            JObject jo = new JObject();
-                            jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                            jo[JKeys.Generic.Action] = JKeys.BinUploader.StartUpload;
-                            jo[JKeys.Generic.Result] = JKeys.Result.Error;
-                            jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.BinUploader.FileCreateError;
-                            jo[JKeys.Generic.Message] = ex.ToString();
-                            NSULog.Exception(LogTag, "Action:Start - " + ex);
-                            SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                        }
-                        break;
-                    case JKeys.BinUploader.Data:
-                        try
-                        {
-                            if (stage == Stage.Upload)
-                            {
-                                var bindata = Convert.FromBase64String((string)data[JKeys.Generic.Value]);
-                                binfile.Write(bindata, 0, bindata.Length);
-                                JObject jo = new JObject();
-                                jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                                jo[JKeys.Generic.Action] = JKeys.BinUploader.Data;
-                                jo[JKeys.Generic.Status] = (int)data[JKeys.Generic.Status];
-                                jo[JKeys.Generic.Result] = JKeys.Result.Ok;
-                                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                            }
-                            else
-                            {
-                                //Report error
-                                NSULog.Debug(LogTag, "Not in progress");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            CleanUp();
-                            JObject jo = new JObject();
-                            jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                            jo[JKeys.Generic.Action] = JKeys.BinUploader.Data;
-                            jo[JKeys.Generic.Result] = JKeys.Result.Error;
-                            jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.BinUploader.FileCreateError;
-                            jo[JKeys.Generic.Message] = ex.ToString();
-                            NSULog.Exception(LogTag, "Action:Data - " + ex);
-                            SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                        }                        
-                        break;
-                    case JKeys.BinUploader.DataDone:
-                        if(stage == Stage.Upload)
-                        {
-                            try
-                            {
-                                binfile.Flush(true);
-                                binfile.Position = 0;
+                    switch (action)
+                    {
+                        case JKeys.BinUploader.Abort:
+                            ActionAbort(clientData);
+                            break;
 
-                                //Compute hash
-                                SHA256Managed sha = new SHA256Managed();
-                                var hash = BitConverter.ToString(sha.ComputeHash(binfile)).Replace("-", string.Empty);
+                        case JKeys.BinUploader.StartUpload:
+                            ActionStartUpload(clientData);
+                            break;
 
-                                binfile.Dispose();
-                                binfile = null;
+                        case JKeys.BinUploader.Data:
+                            ActionData(clientData, data);
+                            break;
 
-                                JObject jo = new JObject();
-                                jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                                jo[JKeys.Generic.Action] = JKeys.BinUploader.DataDone;
-                                jo[JKeys.Generic.Result] = JKeys.Result.Ok;
-                                jo[JKeys.Generic.Value] = hash;
-                                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                            }
-                            catch (Exception ex)
-                            {
-                                CleanUp();
-                                JObject jo = new JObject();
-                                jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                                jo[JKeys.Generic.Action] = JKeys.BinUploader.DataDone;
-                                jo[JKeys.Generic.Result] = JKeys.Result.Error;
-                                jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.BinUploader.FileCreateError;
-                                jo[JKeys.Generic.Message] = ex.ToString();
-                                NSULog.Exception(LogTag, "Action:Data - " + ex);
-                                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                            }
-
-                        }
-                        break;
-                    case JKeys.BinUploader.StartFlash:
-                        if (stage == Stage.Upload)
-                        {
-                            StartFlashProcess();
-                        }
-                        break;
-                    default:
-                        break;
+                        case JKeys.BinUploader.DataDone:
+                            ActionDataDone(clientData);
+                            break;
+                        case JKeys.BinUploader.StartFlash:
+                            ActionStartFlash();
+                            break;
+                        default:
+                            break;
+                    }
                 }
+                catch(Exception ex)
+                {
+                    CleanUp();
+                    JObject jo = new JObject
+                    {
+                        [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                        [JKeys.Generic.Action] = JKeys.BinUploader.DataDone,
+                        [JKeys.Generic.Result] = JKeys.Result.Error,
+                        [JKeys.Generic.Message] = ex.Message
+                    };
+                    NSULog.Exception(LogTag, $"Action: {action} - Exception: {ex}");
+                    SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
+                }
+            }
+        }
+
+        private void ActionStartFlash()
+        {
+            if (_stage == Stage.Upload)
+            {
+                StartFlashProcess();
+            }
+        }
+
+        private void ActionDataDone(NetClientData clientData)
+        {
+            if (_stage == Stage.Upload)
+            {
+                    _binFile.Flush(true);
+                    _binFile.Position = 0;
+
+                    //Compute hash
+                    SHA256Managed sha = new SHA256Managed();
+                    var hash = BitConverter.ToString(sha.ComputeHash(_binFile)).Replace("-", string.Empty);
+
+                    _binFile.Dispose();
+                    _binFile = null;
+
+                    JObject jo = new JObject();
+                    jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
+                    jo[JKeys.Generic.Action] = JKeys.BinUploader.DataDone;
+                    jo[JKeys.Generic.Result] = JKeys.Result.Ok;
+                    jo[JKeys.Generic.Value] = hash;
+                    SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
+            }
+        }
+
+        private void ActionData(NetClientData clientData, JObject data)
+        {
+                if (_stage == Stage.Upload)
+                {
+                    var bindata = Convert.FromBase64String((string)data[JKeys.Generic.Value]);
+                    _binFile.Write(bindata, 0, bindata.Length);
+                    JObject jo = new JObject
+                    {
+                        [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                        [JKeys.Generic.Action] = JKeys.BinUploader.Data,
+                        [JKeys.Generic.Status] = (int)data[JKeys.Generic.Status],
+                        [JKeys.Generic.Result] = JKeys.Result.Ok
+                    };
+                    SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
+                }
+                else
+                {
+                    //Report error
+                    NSULog.Debug(LogTag, "Not in progress");
+                }
+        }
+
+        private void ActionStartUpload(NetClientData clientData)
+        {
+                if (_stage == Stage.None)
+                {
+                    CleanUp();
+                    _binFile = new FileStream(BinFilePath, FileMode.Create, FileAccess.ReadWrite);
+                    _stage = Stage.Upload;
+                    _clientData = clientData;
+                    JObject jo = new JObject
+                    {
+                        [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                        [JKeys.Generic.Action] = JKeys.BinUploader.StartUpload,
+                        [JKeys.Generic.Result] = JKeys.Result.Ok
+                    };
+                    SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
+                }
+                else
+                {
+                    JObject jo = new JObject
+                    {
+                        [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                        [JKeys.Generic.Action] = JKeys.BinUploader.StartUpload,
+                        [JKeys.Generic.Result] = JKeys.Result.Error,
+                        [JKeys.Generic.ErrCode] = JKeys.ErrCodes.BinUploader.FlashInProgress
+                    };
+                    SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
+
+                    NSULog.Debug(LogTag, "Another user is flashing???");
+                    NSULog.Debug(LogTag, $"Current flassher: {_clientData?.ToString()}");
+                    NSULog.Debug(LogTag, $"New flasher: {clientData?.ToString()}");
+                }
+        }
+
+        private void ActionAbort(NetClientData clientData)
+        {
+            if (_stage == Stage.Upload)
+            {
+                CleanUp();
+                _stage = Stage.None;
+                _binFile = null;
+                JObject jo = new JObject
+                {
+                    [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                    [JKeys.Generic.Action] = JKeys.BinUploader.Abort,
+                    [JKeys.Generic.Result] = JKeys.Result.Ok
+                };
+                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
             }
         }
 
         private void CleanUp()
         {
-            stage = Stage.None;
-            try
+            _retryCount = 0;
+            _stage = Stage.None;
+            _binFile?.Dispose();
+            _binFile = null;
+            if (File.Exists(BinFilePath))
             {
-                if(binfile != null)
-                {
-                    binfile.Dispose();
-                }
-                if(File.Exists(BinFilePath))
-                {
-                    File.Delete(BinFilePath);
-                }
+                File.Delete(BinFilePath);
             }
-            finally
-            {
-                retryCount = 0;
-                binfile = null;
-            }
-
         }
 
         private void StartFlashProcess()
         {
-            stage = Stage.Write;
+            _stage = Stage.Write;
             NSULog.Debug(LogTag, "StartFlashProcess()");
             nsusys.cmdCenter.Stop();
-            //System.Threading.Thread.Sleep(300);
-            ProcessStartInfo psi = new ProcessStartInfo(Config.Instance().Bossac);
-            psi.Arguments = string.Format($"-i -d --port={Config.Instance().BossacPort} -U false -e -w -v -b {Path.Combine(Config.Instance().NSUWritablePath, BinFile)} -R");
-            psi.RedirectStandardOutput = true;
-            psi.RedirectStandardError = true;
-            psi.UseShellExecute = false;
-            psi.CreateNoWindow = true;
+
+            ProcessStartInfo psi = new ProcessStartInfo(_nsuSys.Config.Bossac)
+            {
+                Arguments = $"-i -d --port={_nsuSys.Config.BossacPort} -U false -e -w -v -b {Path.Combine(_nsuSys.Config.NSUWritablePath, BinFile)} -R",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
 
             NSULog.Debug(LogTag, $"Starting '{psi.FileName}' with arguments '{psi.Arguments}'");
             ReportInfo($"Starting: {psi.FileName}");
             ReportInfo($"Arguments: {psi.Arguments}");
 
-            prc = new Process();
-            prc.StartInfo = psi;
-            prc.EnableRaisingEvents = true;
-            prc.OutputDataReceived += HandlePrcOutputDataReceived;
-            prc.Exited += HandlePrcExited;
-            prc.Start();
-            prc.BeginOutputReadLine();
+            _process = new Process
+            {
+                StartInfo = psi,
+                EnableRaisingEvents = true
+            };
+            _process.OutputDataReceived += HandlePrcOutputDataReceived;
+            _process.Exited += HandlePrcExited;
+            _process.Start();
+            _process.BeginOutputReadLine();
         }
 
         private void HandlePrcOutputDataReceived(object sender, DataReceivedEventArgs e)
         {
             string input = e.Data.Trim();
-            
+
             if (!string.IsNullOrWhiteSpace(input))
             {
                 if (input.StartsWith("write")) return;
                 if (input.StartsWith("read")) return;
                 if (input.StartsWith("go")) return;
 
-                NSULog.Debug(LogTag, "bossac: "+input);
+                NSULog.Debug(LogTag, "bossac: " + input);
                 if (input.StartsWith("Write") && input.Contains("to flash"))
                 {
-                    stage = Stage.Write;
+                    _stage = Stage.Write;
                     FlashStarted();
                 }
                 else if (input.StartsWith("Verify") && input.Contains("of flash"))
                 {
-                    stage = Stage.Verify;
+                    _stage = Stage.Verify;
                     VerifyStarted();
                 }
                 else if (input.StartsWith("["))
@@ -304,26 +299,26 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private void HandlePrcExited(object sender, EventArgs e)
         {
-            NSULog.Debug(LogTag, "HandlePrcExited() exit code: "+prc.ExitCode.ToString());
-            int exitCode = prc.ExitCode;
+            NSULog.Debug(LogTag, "HandlePrcExited() exit code: " + _process.ExitCode.ToString());
+            int exitCode = _process.ExitCode;
             int c = 0;
-            while (!prc.HasExited && c < 15)
+            while (!_process.HasExited && c < 15)
             {
                 NSULog.Debug(LogTag, "!prc.HasExited: Sleeping...");
                 System.Threading.Thread.Sleep(250);
                 c++;
             }
-            if (!prc.HasExited)
+            if (!_process.HasExited)
             {
                 NSULog.Debug(LogTag, "Still !prc.HasExited: Killing...");
-                prc.Kill();
+                _process.Kill();
             }
 
             NSULog.Debug(LogTag, "prc.Close();");
-            prc.Close();
-            prc = null;
+            _process.Close();
+            _process = null;
             if (exitCode == 0)
-            {                
+            {
                 NSULog.Debug(LogTag, "Starting CmdCenter...");
                 //System.Threading.Thread.Sleep(100);
                 nsusys.cmdCenter.Start();
@@ -332,42 +327,49 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             else
             {
                 //Report error
-                JObject jo = new JObject();
-                jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                jo[JKeys.Generic.Action] = JKeys.BinUploader.StartFlash;
-                jo[JKeys.Generic.Result] = JKeys.Result.Error;
-                jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.BinUploader.BossacError;
-                jo[JKeys.Generic.Value] = exitCode;
+                JObject jo = new JObject
+                {
+                    [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                    [JKeys.Generic.Action] = JKeys.BinUploader.StartFlash,
+                    [JKeys.Generic.Result] = JKeys.Result.Error,
+                    [JKeys.Generic.ErrCode] = JKeys.ErrCodes.BinUploader.BossacError,
+                    [JKeys.Generic.Value] = exitCode
+                };
                 NSULog.Exception(LogTag, "Bossac exit code - " + exitCode.ToString());
-                SendToClient(NetClientRequirements.CreateStandartClientOnly(client), jo);
+                SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
 
                 //Send info about retry
                 ReportInfo("Retrying in 3 seconds...");
                 //Init repeat
-                if(retryCount < 3)
+                if (_retryCount < 3)
                 {
-                    retryTimer.Enabled = true;
+                    _retryCount++;
+                    _retryTimer.Enabled = true;
                 }
             }
         }
 
         private void FlashStarted()
         {
-            stage = Stage.Write;
+            _stage = Stage.Write;
             NSULog.Debug(LogTag, "Flash Started....");
-            JObject jo = new JObject();
-            jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-            jo[JKeys.Generic.Action] = JKeys.BinUploader.FlashStarted;
-            SendToClient(NetClientRequirements.CreateStandartClientOnly(client), jo);
+            JObject jo = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                [JKeys.Generic.Action] = JKeys.BinUploader.FlashStarted
+            };
+            SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
         }
 
         private void VerifyStarted()
         {
-            stage = Stage.Verify;
-            JObject jo = new JObject();
-            jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-            jo[JKeys.Generic.Action] = JKeys.BinUploader.VerifyStarted;
-            SendToClient(NetClientRequirements.CreateStandartClientOnly(client), jo);
+            _stage = Stage.Verify;
+            JObject jo = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                [JKeys.Generic.Action] = JKeys.BinUploader.VerifyStarted
+            };
+            SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
         }
 
         private void ReportProgress(string input)
@@ -375,35 +377,40 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             var result = input.Split(' ')
                 .Where(s => s.Contains('%'))
                 .Select(s => s.Trim('%')).First();
-            //NSULog.Debug(LogTag, "ReportProgress() Searching percentage: " + result);
-            int res = 0;
-            if(int.TryParse(result, out res))
+
+            if (int.TryParse(result, out int res))
             {
-                JObject jo = new JObject();
-                jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-                jo[JKeys.Generic.Action] = JKeys.BinUploader.Progress;
-                jo[JKeys.Generic.Value] = res;
-                SendToClient(NetClientRequirements.CreateStandartClientOnly(client), jo);
+                JObject jo = new JObject
+                {
+                    [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                    [JKeys.Generic.Action] = JKeys.BinUploader.Progress,
+                    [JKeys.Generic.Value] = res
+                };
+                SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
             }
         }
 
         private void ReportInfo(string input)
         {
-            JObject jo = new JObject();
-            jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-            jo[JKeys.Generic.Action] = JKeys.BinUploader.InfoText;
-            jo[JKeys.Generic.Value] = input;
-            SendToClient(NetClientRequirements.CreateStandartClientOnly(client), jo);
-            
+            JObject jo = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                [JKeys.Generic.Action] = JKeys.BinUploader.InfoText,
+                [JKeys.Generic.Value] = input
+            };
+            SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
+
         }
 
         private void ReportFinish()
         {
-            stage = Stage.None;
-            JObject jo = new JObject();
-            jo[JKeys.Generic.Target] = JKeys.BinUploader.TargetName;
-            jo[JKeys.Generic.Action] = JKeys.BinUploader.FlashDone;
-            SendToClient(NetClientRequirements.CreateStandartClientOnly(client), jo);
+            _stage = Stage.None;
+            JObject jo = new JObject
+            {
+                [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
+                [JKeys.Generic.Action] = JKeys.BinUploader.FlashDone
+            };
+            SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
         }
     }
 }

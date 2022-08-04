@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using NSU.Shared.NSUTypes;
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
@@ -11,7 +12,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
     public class Collectors : NSUSysPartsBase
     {
         readonly string LogTag = "Collectors";
-        private List<Collector> collectors = new List<Collector>();
+        private readonly List<Collector> _collectors = new List<Collector>();
 
         public Collectors(NSUSys sys, PartsTypes type)
             : base(sys, type)
@@ -25,28 +26,18 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private Collector FindCollector(string name)
         {
-            for (int i = 0; i < collectors.Count; i++)
-            {
-                if (collectors[i].Name.Equals(name))
-                    return collectors[i];
-            }
-            return null;
+            return _collectors.FirstOrDefault(x => x.Name == name);
         }
 
         private Collector FindCollector(byte cfg_pos)
         {
-            for (int i = 0; i < collectors.Count; i++)
-            {
-                if (collectors[i].ConfigPos == cfg_pos)
-                    return collectors[i];
-            }
-            return null;
+            return _collectors.FirstOrDefault(x => x.ConfigPos == cfg_pos);
         }
 
         public override void ProccessArduinoData(JObject data)
         {
             switch ((string)data[JKeys.Generic.Action])
-            {                
+            {
                 case JKeys.Syscmd.Snapshot:
                     if (data.Property(JKeys.Generic.Result) == null)
                     {
@@ -59,26 +50,37 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
                         var ja = (JArray)data[JKeys.Collector.Valves];
                         string content = JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config);
-                        for(int i=0; i < cl.ActuatorsCount; i++)
+
+                        int idx = 0;
+                        foreach (JObject jo in ja)
                         {
-                            var jo = ja[i] as JObject;
-                            cl.actuators[i].Type = (ActuatorType)(byte)jo[JKeys.Collector.ActuatorType];
-                            cl.actuators[i].RelayChannel = (byte)jo[JKeys.Collector.ActuatorChannel];
-                            if (content == JKeys.Content.ConfigPlus)
-                                cl.actuators[i].Opened = JSonValueOrDefault(jo, JKeys.Generic.Status, false);// (bool)jo[JKeys.Generic.Status];
+                            if (idx < cl.Actuators.Count)
+                            {
+                                cl.Actuators[idx].Type = (ActuatorType)(byte)jo[JKeys.Collector.ActuatorType];
+                                cl.Actuators[idx].RelayChannel = (byte)jo[JKeys.Collector.ActuatorChannel];
+                                if (content == JKeys.Content.ConfigPlus)
+                                    cl.Actuators[idx].Opened = JSonValueOrDefault(jo, JKeys.Generic.Status, false);// (bool)jo[JKeys.Generic.Status];
+                            }
+                            idx++;
                         }
                         cl.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.Collectors));
-                        collectors.Add(cl);
+                        _collectors.Add(cl);
                     }
                     break;
+
                 case JKeys.Action.Info:
                     var col = FindCollector((string)data[JKeys.Generic.Name]);
-                    if(col != null)
+                    if (col != null)
                     {
                         JArray ja = (JArray)data[JKeys.Generic.Status];
-                        for(byte i=0; i < col.ActuatorsCount; i++)
+                        int idx = 0;
+                        foreach (string boolValue in ja)
                         {
-                            col.actuators[i].Opened = Convert.ToBoolean((string)ja[i]);
+                            if (idx < col.Actuators.Count)
+                            {
+                                col.Actuators[idx].Opened = Convert.ToBoolean(boolValue);
+                            }
+                            idx++;
                         }
                     }
                     SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), data);
@@ -103,7 +105,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void Clear()
         {
-            collectors.Clear();
+            _collectors.Clear();
         }
     }
 }
