@@ -22,7 +22,7 @@ namespace NSUWatcher.NSUSystem
     {
 
         readonly string LogTag = "NSUSys";
-
+        
         public const int VERSION_MAJOR = 0;
         public const int VERSION_MINOR = 4;
 
@@ -35,26 +35,22 @@ namespace NSUWatcher.NSUSystem
 
         /***************************************************************************/
 
-        public class NSUSysPartInfo
-        {
-            public PartsTypes PartType;
-            public string[] AcceptableCmds;
-            public NSUSysPartsBase Part;
-        };
-
-        public object MySQLLock = new object();
+        
 
         public CmdCenter cmdCenter;
         public NetServer NetServer { get; private set; } = null;
-        private DBUtility dbUtility = null;
-        private NSUSysPartInfo sysPart;
 
+        private MySqlDBUtility dbUtility = null;
+        private NSUSysPartInfo sysPart;
+        private readonly Config _config;
         private System.Timers.Timer oneMinuteTimer = new System.Timers.Timer(1000 * 60);
         private System.Timers.Timer oneSecondTimer = new System.Timers.Timer(1000);
         private int oldMin;
 
         private NSUSysPartInfo nsupart;
         private bool isReady = false;
+
+        public Config Config => _config;
 
         public bool IsReady
         {
@@ -63,7 +59,7 @@ namespace NSUWatcher.NSUSystem
 
         public MCUStatus ArduinoStatus
         {
-            get { return arduinoStatus; }
+            get => arduinoStatus;
             set
             {
                 if (arduinoStatus != value)
@@ -85,24 +81,27 @@ namespace NSUWatcher.NSUSystem
             get; internal set;
         }
 
-        public TimeHelper SystemTime { get; }
+        public DaylightSavingTimeHelper SystemTime { get; }
 
-        public NSUSys()
+        public NSUSys(Config config)
         {
-            XMLConfig = new NSUXMLConfig();
-            XMLConfig.FileName = Path.Combine(Config.Instance().NSUWritablePath, Config.Instance().NSUXMLSnapshotFile);
+            _config = config ?? throw new ArgumentNullException(nameof(config), "Config object cannot be null.");
 
-            cmdCenter = new CmdCenter();
+            XMLConfig = new NSUXMLConfig
+            {
+                FileName = Path.Combine(_config.NSUWritablePath, _config.NSUXMLSnapshotFile)
+            };
 
-            dbUtility = new DBUtility(getConnectionString());
+            cmdCenter = new CmdCenter(_config);
 
+            dbUtility = new MySqlDBUtility(MySqlDBUtility.MakeConnectionString(_config));
             Users = new NSUUsers(dbUtility);
 
             NSULog.Debug(LogTag, "Starting NetServer.");
-            NetServer = new NetServer();
+            NetServer = new NetServer(_config);
             NetServer.ClientConnected += HandleClientConnected;
             NetServer.ClientDisconnected += HandleClientDisconnected;
-            NetServer.OnDataReceived += NetworkDataReceivedHandler;
+            NetServer.DataReceived += NetworkDataReceivedHandler;
 
             //SYSCMD
             sysPart = new NSUSysPartInfo();
@@ -121,31 +120,25 @@ namespace NSUWatcher.NSUSystem
             oneSecondTimer.Elapsed += SecondTimer_Elapsed;
 
             PushNotifications = new PushNotifications();
-            SystemTime = new TimeHelper();
-            SystemTime.TimeChanged += SystemTimeChanged;
+
+            SystemTime = new DaylightSavingTimeHelper();
+            SystemTime.DaylightTimeChanged += SystemTimeChanged;
             SystemTime.Start();
             
             NetServer.Start();
-
         }
 
-        private string getConnectionString()
-        {
-            return 
-                $"Server={Config.Instance().DBServerHost};" +
-                $"Database={Config.Instance().DBName};" +
-                $"User ID={Config.Instance().DBUserName};" +
-                $"Password={Config.Instance().DBUserPassword};" +
-                "Pooling=false";
-        }
+        
 
         private void SystemTimeChanged(object sender, EventArgs e)
         {
             CalibrateMinuteStart();
-            //ReSet Arduino Time
-            var vs = new JObject();
-            vs.Add(JKeys.Generic.Target, JKeys.Syscmd.TargetName);
-            vs.Add(JKeys.Generic.Action, JKeys.Syscmd.TimeChanged);
+            //Reset Arduino Time
+            var vs = new JObject
+            {
+                { JKeys.Generic.Target, JKeys.Syscmd.TargetName },
+                { JKeys.Generic.Action, JKeys.Syscmd.TimeChanged }
+            };
             OnArduinoDataReceived(vs);
         }
 
@@ -176,13 +169,12 @@ namespace NSUWatcher.NSUSystem
         {
             if (DateTime.Now.Minute % LOG_EVERY_MINUTES == 0)
             {
-                var vs = new JObject();
-                vs.Add(JKeys.Generic.Action, JKeys.Timer.ActionTimer);
-                foreach (var item in NSUParts)
+                var vs = new JObject
                 {
+                    [JKeys.Generic.Action] = JKeys.Timer.ActionTimer
+                };
+                foreach (var item in NSUParts)
                     item.Part.ProccessArduinoData(vs);
-                }
-                vs = null;
             }
         }
 
@@ -228,8 +220,6 @@ namespace NSUWatcher.NSUSystem
 
             //Rebooting Arduino
             NSULog.Debug(LogTag, "OnArduinoCrashed(): Rebooting Arduino using DTR.");
-            //cmdCenter.Stop();
-            //cmdCenter.Start(true);
             cmdCenter.SendDTRSignal();
         }
 
