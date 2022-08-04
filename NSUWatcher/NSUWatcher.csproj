@@ -127,6 +127,7 @@
     <Compile Include="Config.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="NSUSystem\NSUSysPartInfo.cs" />
     <Compile Include="NSUSystem\ArduinoCmdResponse.cs" />
     <Compile Include="NSUSystem\MCUStatus.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\BinUploader.cs" />
@@ -146,8 +147,8 @@
     <Compile Include="NSUSystem\NSUSystemParts\Usercmd.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\WaterBoilers.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\WoodBoilers.cs" />
-    <Compile Include="NSUSystem\TimeHelper.cs" />
-    <Compile Include="NSUWatcherNet\NetClientContext.cs" />
+    <Compile Include="NSUSystem\DaylightSavingTimeHelper.cs" />
+    <Compile Include="NSUWatcherNet\TcpClientHandler.cs" />
     <Compile Include="NSUWatcherNet\NetStatistics.cs" />
     <Compile Include="NSUWatcherService.cs">
       <SubType>Component</SubType>
@@ -157,7 +158,7 @@
     <Compile Include="NSUWatcherNet\NetClientData.cs" />
     <Compile Include="NSUWatcherNet\NetClientRequirements.cs" />
     <Compile Include="NSUWatcherNet\NetServer.cs" />
-    <Compile Include="DBUtils\DBUtility.cs" />
+    <Compile Include="DBUtils\MySqlDBUtility.cs" />
     <Compile Include="DBUtils\PasswordHasher.cs" />
     <Compile Include="NSUUserManagement\NSUUsers.cs" />
     <Compile Include="NSUUserManagement\NSUUserPermissions.cs" />
@@ -169,7 +170,6 @@
     <None Include="CommandMessenger\obj\Debug\DesignTimeResolveAssemblyReferencesInput.cache" />
     <None Include="NSUWatcher_TemporaryKey.pfx" />
     <None Include="packages.config" />
-    <None Include="app.config" />
     <None Include="!linux\nsuwatcher.sh">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
