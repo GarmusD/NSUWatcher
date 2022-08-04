@@ -166,11 +166,11 @@
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <None Include="!linux\NSUWatcher.conf" />
+    <None Include="_linux\NSUWatcher.conf" />
     <None Include="CommandMessenger\obj\Debug\DesignTimeResolveAssemblyReferencesInput.cache" />
     <None Include="NSUWatcher_TemporaryKey.pfx" />
     <None Include="packages.config" />
-    <None Include="!linux\nsuwatcher.sh">
+    <None Include="_linux\nsuwatcher.sh">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="Properties\app.manifest" />
@@ -208,7 +208,7 @@
     </BootstrapperPackage>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="!linux\cron_job.txt" />
+    <None Include="_linux\cron_job.txt" />
   </ItemGroup>
   <Import Project="..\..\Shared\Shared.projitems" Label="Shared" />
 </Project>
