@@ -7,41 +7,40 @@ using NSU.Shared.NSUTypes;
 
 namespace NSUWatcher.NSUUserManagement
 {
-	public enum NSUUserType
-	{
-		Unknown = 0,
-		User = 1,
-		Admin = 2
-	}
+    public enum NSUUserType
+    {
+        Unknown = 0,
+        User = 1,
+        Admin = 2
+    }
 
-	public class NSUUser
-	{		
-		public int DBID { get; internal set; }
-		public string Username { get; internal set; }			
-		public NSUUserType UserType	{ get; internal set; }
-		public string UserUID { get; internal set; }
-		public bool BuiltIn { get; internal set; }
-		public NSUUserPermissions Permissions{ get; internal set; }
+    public class NSUUser
+    {
+        public int DBID { get; internal set; }
+        public string Username { get; internal set; }
+        public NSUUserType UserType { get; internal set; }
+        public string UserUID { get; internal set; }
+        public NSUUserPermissions Permissions { get; internal set; }
         public bool NeedChangePassword { get; internal set; }
         public string DeviceType { get; internal set; }
         public string DeviceId { get; internal set; }
         public string Hash { get; internal set; }
         public string PushID { get; internal set; }
 
-		public NSUUser(int usrDBID, string usrName, NSUUserType usrType, string usrUID, bool usrBuiltIn, bool chgPsw = false)
-		{
-			DBID = usrDBID;
-			Username = usrName;
-			UserType = usrType;
-			UserUID = usrUID;
-			BuiltIn = usrBuiltIn;
+        public NSUUser(int usrDBID, string usrName, NSUUserType usrType, string usrUID, bool usrBuiltIn, bool chgPsw = false)
+        {
+            DBID = usrDBID;
+            Username = usrName;
+            UserType = usrType;
+            UserUID = usrUID;
+            _ = usrBuiltIn;
             NeedChangePassword = chgPsw;
             DeviceType = string.Empty;
             DeviceId = string.Empty;
             Hash = string.Empty;
             PushID = string.Empty;
-			Permissions = new NSUUserPermissions();
-		}
+            Permissions = new NSUUserPermissions();
+        }
 
         public NSUUser()
         {
@@ -49,7 +48,6 @@ namespace NSUWatcher.NSUUserManagement
             Username = string.Empty;
             UserType = NSUUserType.Unknown;
             UserUID = string.Empty;
-            BuiltIn = false;
             NeedChangePassword = false;
             DeviceType = string.Empty;
             DeviceId = string.Empty;
@@ -59,30 +57,22 @@ namespace NSUWatcher.NSUUserManagement
         }
     }
 
-	public class NSUUsers
-	{
+    public class NSUUsers
+    {
         private const string LogTag = "NSUUser";
-        private const string DefaultAdminUserName = "admin";
-        private const string DefaultAdminPassword = "admin";
+        //private const string DefaultAdminUserName = "admin";
+        //private const string DefaultAdminPassword = "admin";
         //private MySqlCommand mysqlcmd;
-        private DBUtility dbutil;
+        private readonly MySqlDBUtility _dbutil;
 
-		public NSUUsers(DBUtility value)
-		{
-            dbutil = value;
+        public NSUUsers(MySqlDBUtility value)
+        {
+            _dbutil = value;
             CheckTables();
-			CheckBuiltInUser();
-		}
+        }
 
         private void CheckTables()
         {
-            //var ssql = "DROP TABLE IF EXISTS `NSU`.`users`";
-            //using (var mysqlcmd = dbutil.GetMySqlCmd())
-            //{
-            //    mysqlcmd.CommandText = ssql;
-            //    mysqlcmd.ExecuteNonQuery();
-            //}
-
             string sql = "CREATE TABLE IF NOT EXISTS `NSU`.`users` (" +
                 "`id` INT NOT NULL AUTO_INCREMENT, " +
                 "`usertype` INT NOT NULL, " +
@@ -91,7 +81,7 @@ namespace NSUWatcher.NSUUserManagement
                 "`useruid` CHAR(42), " +
                 "`builtin` INT NOT NULL DEFAULT 0, " +
                 "PRIMARY KEY (`id`) )ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            using (var mysqlcmd = dbutil.GetMySqlCmd())
+            using (var mysqlcmd = _dbutil.GetMySqlCmd())
             {
                 mysqlcmd.CommandText = sql;
                 mysqlcmd.ExecuteNonQuery();
@@ -103,85 +93,103 @@ namespace NSUWatcher.NSUUserManagement
                 "`devicetype` VARCHAR(30), " +
                 "`deviceid` CHAR(42), " +
                 "`hash` VARCHAR(60) NOT NULL, " +
-                "`pushid` VARCHAR(60), " +                
+                "`pushid` VARCHAR(60), " +
                 "PRIMARY KEY (`id`) )ENGINE=InnoDB DEFAULT CHARSET=utf8";
-            using (var mysqlcmd = dbutil.GetMySqlCmd())
+            using (var mysqlcmd = _dbutil.GetMySqlCmd())
             {
                 mysqlcmd.CommandText = sql;
                 mysqlcmd.ExecuteNonQuery();
             }
         }
 
-		public void CheckBuiltInUser()
-		{
-			if(!BuiltInUserExists())
-			{
-				CreateBuiltInUser();
-			}
-		}
-
-		private bool BuiltInUserExists()
-		{
-            var result = false;
-            string sql = "SELECT `id` FROM `users` WHERE `builtin` = 1";
-            using (var cmd = dbutil.GetMySqlCmd())
-            {
-                cmd.CommandText = sql;
-                using (var reader = cmd.ExecuteReader())
-                {
-                    if (reader.HasRows)
-                        result = true;
-                }
-            }
-			return result;
-		}
-
-        private string GetUID()
+        private static string GetUID()
         {
             return Guid.NewGuid().ToString().Replace("{", string.Empty).Replace("}", string.Empty);
         }
 
-		private void CreateBuiltInUser()
-		{
-            string sql = "INSERT INTO `NSU`.`users`(`usertype`,`username`,`password`,`useruid`,`builtin`) " +
-				"VALUES("+Environment.NewLine+
-					"@usrType, "+Environment.NewLine+
-					"@usrName, "+Environment.NewLine+
-					"@usrPassword, "+Environment.NewLine+
-					"@usrUID, "+Environment.NewLine+
-					"@usrBuiltIn);";			
-			var hash = PasswordHasher.ComputeHash(DefaultAdminPassword);
-			NSULog.Debug("NSUUserManagement - Hash:", hash);
-            using (var mysqlcmd = dbutil.GetMySqlCmd())
+        public bool UsernameExist(string userName)
+        {
+            string sql = "SELECT `id` FROM `users` WHERE `username` like @usrName;";
+            using (var mysqlcmd = _dbutil.GetMySqlCmd())
             {
                 mysqlcmd.CommandText = sql;
                 mysqlcmd.Parameters.Clear();
-                mysqlcmd.Parameters.Add("@usrType", MySqlDbType.Int32).Value = (int)NSUUserType.Admin;
-                mysqlcmd.Parameters.Add("@usrName", MySqlDbType.VarChar).Value = DefaultAdminUserName;
+                mysqlcmd.Parameters.Add("@usrName", MySqlDbType.VarChar).Value = userName;
+                mysqlcmd.Prepare();
+
+                try
+                {
+                    var result = mysqlcmd.ExecuteReader();
+                    return result.HasRows;
+                }
+                catch (InvalidOperationException e)
+                {
+                    NSULog.Exception("MySql", e.Message);
+                }
+            }
+            return false;
+        }
+
+        public bool CreateNewUser(string userName, string password, NSUUserType userType = NSUUserType.User)
+        {
+            string sql = "INSERT INTO `NSU`.`users`(`usertype`,`username`,`password`,`useruid`) " +
+                "VALUES(" + Environment.NewLine +
+                    "@usrType, " + Environment.NewLine +
+                    "@usrName, " + Environment.NewLine +
+                    "@usrPassword, " + Environment.NewLine +
+                    "@usrUID);";
+            var hash = PasswordHasher.ComputeHash(password);
+            NSULog.Debug("NSUUserManagement - Hash:", hash);
+            using (var mysqlcmd = _dbutil.GetMySqlCmd())
+            {
+                mysqlcmd.CommandText = sql;
+                mysqlcmd.Parameters.Clear();
+                mysqlcmd.Parameters.Add("@usrType", MySqlDbType.Int32).Value = (int)userType;
+                mysqlcmd.Parameters.Add("@usrName", MySqlDbType.VarChar).Value = userName;
                 mysqlcmd.Parameters.Add("@usrPassword", MySqlDbType.VarChar).Value = hash;
                 mysqlcmd.Parameters.Add("@usrUID", MySqlDbType.VarChar).Value = GetUID();
-                mysqlcmd.Parameters.Add("@usrBuiltIn", MySqlDbType.Int32).Value = 1;
                 mysqlcmd.Prepare();
 
                 try
                 {
                     mysqlcmd.ExecuteNonQuery();
+                    return true;
                 }
-                catch (MySqlException e)
+                catch (InvalidOperationException e)
                 {
                     NSULog.Exception("MySql", e.Message);
                 }
-                catch (Exception ex)
+            }
+            return false;
+        }
+
+        public bool DeleteUser(string userName)
+        {
+            string sql = "DELETE FROM `users` WHERE `username` like @usrName;";
+            using (var mysqlcmd = _dbutil.GetMySqlCmd())
+            {
+                mysqlcmd.CommandText = sql;
+                mysqlcmd.Parameters.Clear();
+                mysqlcmd.Parameters.Add("@usrName", MySqlDbType.VarChar).Value = userName;
+                mysqlcmd.Prepare();
+
+                try
                 {
-                    NSULog.Exception("CreateBuiltInUser()", ex.Message);
+                    mysqlcmd.ExecuteNonQuery();
+                    return true;
+                }
+                catch (InvalidOperationException e)
+                {
+                    NSULog.Exception("MySql", e.Message);
                 }
             }
-		}
+            return false;
+        }
 
         private NSUUser CreateLoggedInUserHash(NSUUser user)
         {
             string sql = "INSERT INTO `userhashes`(`userid`, `deviceid`, `hash`) VALUES(@userid, @deviceid, @hash)";
-            using (var cmd = dbutil.GetMySqlCmd())
+            using (var cmd = _dbutil.GetMySqlCmd())
             {
                 string hash = GetUID();
                 string deviceid = GetUID();
@@ -196,7 +204,7 @@ namespace NSUWatcher.NSUUserManagement
                     user.DeviceId = deviceid;
                     user.Hash = hash;
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     NSULog.Exception(LogTag, ex.Message);
                 }
@@ -207,7 +215,7 @@ namespace NSUWatcher.NSUUserManagement
         private NSUUser UpdateLoggedInUserHash(NSUUser user)
         {
             string sql = "UPDATE `userhashes` SET `hash` = @hash WHERE `userid` = @userid AND `deviceid` = @hash;";
-            using (var cmd = dbutil.GetMySqlCmd())
+            using (var cmd = _dbutil.GetMySqlCmd())
             {
                 string hash = GetUID();
                 var tr = cmd.Connection.BeginTransaction();
@@ -240,7 +248,7 @@ namespace NSUWatcher.NSUUserManagement
             if (user == null)
                 return null;
             string sql = "SELECT * FROM `users` WHERE `id`=@userid";
-            using (var cmd = dbutil.GetMySqlCmd())
+            using (var cmd = _dbutil.GetMySqlCmd())
             {
                 cmd.CommandText = sql;
                 cmd.Parameters.Add("@userid", MySqlDbType.Int32).Value = user.DBID;
@@ -249,15 +257,9 @@ namespace NSUWatcher.NSUUserManagement
                     if (reader.Read())
                     {
                         bool chgpsw = false;
-                        bool builtin = reader.GetBoolean("builtin");
-                        if (builtin)
-                        {
-                            chgpsw = PasswordHasher.ComputeHash(DefaultAdminPassword).Equals(reader.GetString("password"));
-                        }
                         user.Username = reader.GetString("username");
                         user.UserType = (NSUUserType)reader.GetInt32("usertype");
                         user.UserUID = reader.GetString("useruid");
-                        user.BuiltIn = builtin;
                         user.NeedChangePassword = chgpsw;
                     }
                 }
@@ -265,8 +267,8 @@ namespace NSUWatcher.NSUUserManagement
             return user;
         }
 
-		public NSUUser Login(string userName, string userPassword)
-		{
+        public NSUUser Login(string userName, string userPassword)
+        {
             NSUUser user = null;
 
             NSULog.Debug(LogTag, "Looking for user " + userName);
@@ -274,7 +276,7 @@ namespace NSUWatcher.NSUUserManagement
 
 
             string sql = "SELECT * FROM `users` WHERE `username`=@un";
-            using (var mysqlcmd = dbutil.GetMySqlCmd())
+            using (var mysqlcmd = _dbutil.GetMySqlCmd())
             {
                 mysqlcmd.CommandText = sql;
                 mysqlcmd.Parameters.AddWithValue("@un", userName);
@@ -291,10 +293,6 @@ namespace NSUWatcher.NSUUserManagement
                             NSULog.Debug(LogTag, "Passwords are equal.");
                             bool chgpsw = false;
                             bool builtin = reader.GetBoolean("builtin");
-                            if (builtin)
-                            {
-                                chgpsw = PasswordHasher.ComputeHash(DefaultAdminPassword).Equals(reader.GetString("password"));
-                            }
                             user = new NSUUser(
                                 reader.GetInt32("id"),
                                 reader.GetString("username"),
@@ -318,18 +316,18 @@ namespace NSUWatcher.NSUUserManagement
                     }
                 }
             }
-            if(user != null)
+            if (user != null)
             {
                 user = CreateLoggedInUserHash(user);
             }
-			return user;
-		}
+            return user;
+        }
 
         public NSUUser LoginUsingHash(string deviceid, string hash)
         {
             NSUUser user = null;
             string sql = "SELECT * FROM `userhashes` WHERE `deviceid`=@deviceid AND `hash`=@hash";
-            using (var mysqlcmd = dbutil.GetMySqlCmd())
+            using (var mysqlcmd = _dbutil.GetMySqlCmd())
             {
                 NSULog.Debug(LogTag, "Selecting user by DeviceID and Hash");
                 mysqlcmd.CommandText = sql;
@@ -343,11 +341,11 @@ namespace NSUWatcher.NSUUserManagement
                         user = new NSUUser();
                         user.DBID = reader.GetInt32("userid");
                         user.DeviceId = deviceid;
-                        user.Hash = hash;                        
+                        user.Hash = hash;
                     }
                 }
             }
-            if(user != null)
+            if (user != null)
             {
                 NSULog.Debug(LogTag, "Updating user hash");
                 UpdateLoggedInUserHash(user);
@@ -366,9 +364,8 @@ namespace NSUWatcher.NSUUserManagement
 
         public string SetPushID(NSUUser user, string value)
         {
-            string ret = string.Empty;
             string sql = "UPDATE `userhashes` SET `pushid`=@pid WHERE `deviceid`=@did";
-            using (var mysqlcmd = dbutil.GetMySqlCmd())
+            using (var mysqlcmd = _dbutil.GetMySqlCmd())
             {
                 var tr = mysqlcmd.Connection.BeginTransaction();
                 mysqlcmd.CommandText = sql;
@@ -376,12 +373,12 @@ namespace NSUWatcher.NSUUserManagement
                 mysqlcmd.Parameters.Add("@did", MySqlDbType.VarChar).Value = user.DeviceId;
                 var res = mysqlcmd.ExecuteNonQuery();
 
-                if(res == 0)//Error - no device exists
+                if (res == 0)//Error - no device exists
                 {
                     tr.Rollback();
                     return "device_not_found";
                 }
-                else if(res == 1)
+                else if (res == 1)
                 {
                     tr.Commit();
                     user.PushID = value;
