@@ -5,109 +5,37 @@ namespace NSUWatcher.NSUWatcherNet
 {
 	public class NetClientRequirements
 	{
-		public int UserLevelExact
-		{
-			get{ return userLevelExact; }
-			set{ userLevelExact = value; }
-		}int userLevelExact = -1;
+        public int UserLevelExact { get; set; } = -1;
 
-		public int UserLevelHigherOrEqual
-		{
-			get{ return userLevelHigherOrEqual; }
-			set{ userLevelHigherOrEqual = value; }
-		}int userLevelHigherOrEqual = -1;
+        public int UserLevelHigherOrEqual { get; set; } = -1;
 
-		public Guid ExcludeClientID
-		{
-			get{ return excludeClientID; }
-			set{ excludeClientID = value; }
-		}Guid excludeClientID = Guid.Empty;
+        public Guid ExcludeClientID { get; set; } = Guid.Empty;
 
-		public Guid ClientIDMustEqual
-		{
-			get{ return clientIDMustEqual; }
-			set{ clientIDMustEqual = value; }
-		}Guid clientIDMustEqual = Guid.Empty;
+		public Guid ClientIDMustEqual { get; set;} = Guid.Empty;
 
-		public int LoggedIn
-		{
-			get{ return loggedIn; }
-			set{ loggedIn = value; }
-		}int loggedIn = -1;
+        public int LoggedIn { get; set; } = -1;
 
-		public int LoginStageEqual
-		{
-			get{ return loginStageEqual; }
-			set{ loginStageEqual = value; }
-		}int loginStageEqual = -1;
+        public int LoginStageEqual { get; set; } = -1;
 
-		public int IsReady
-		{
-			get{ return isReady; }
-			set{ isReady = value; }
-		}int isReady = -1;
+        public int IsReady { get; set; } = -1;
 
-		public NetClientAccepts ClientAccepts {
-			get{ return netClientAccepts; }
-			set{ netClientAccepts = value; }
-		}NetClientAccepts netClientAccepts = NetClientAccepts.None;
+        public NetClientAccepts ClientAccepts { get; set; } = NetClientAccepts.None;
 
         public static bool Check(NetClientRequirements req, NetClientData clientData)
 		{
-			if (req.IsReady != -1)
-			{
-				if (clientData.IsReady != true)
-				{
-					return false;
-				}
-			}
+			if (req.IsReady != -1 && clientData.IsReady != true) return false;
 
-			if (req.LoggedIn != -1)
-			{
-				if (clientData.LoggedIn != true)
-				{
-					return false;
-				}
-			}
+			if (req.LoggedIn != -1 && clientData.LoggedIn != true) return false;
 
-			if(req.UserLevelExact != -1)
-			{
-				if(!(req.UserLevelExact != (int)clientData.ClientType))
-				{
-					return false;
-				}
-			}
+			if (req.UserLevelExact != -1 && !(req.UserLevelExact != (int)clientData.ClientType)) return false;
 
-			if (req.UserLevelHigherOrEqual != -1)
-			{
-				if (!((int)clientData.ClientType < req.UserLevelHigherOrEqual)) {
-                    return false;
-                }
-            }
+			if (req.UserLevelHigherOrEqual != -1 && !((int)clientData.ClientType < req.UserLevelHigherOrEqual)) return false;
 
-            if (!req.ExcludeClientID.Equals(Guid.Empty))
-			{
-				if(req.ExcludeClientID.Equals(clientData.ClientID))
-				{
-						return false;
-				}
-			}
+            if (!req.ExcludeClientID.Equals(Guid.Empty) && req.ExcludeClientID.Equals(clientData.ClientID)) return false;
 
-			if (!req.ClientIDMustEqual.Equals (Guid.Empty))
-			{
-				if (!req.ClientIDMustEqual.Equals (clientData.ClientID))
-				{
-					return false;
-				}
-			}
+			if (!req.ClientIDMustEqual.Equals (Guid.Empty) && !req.ClientIDMustEqual.Equals (clientData.ClientID)) return false;
 
-			if (req.ClientAccepts != NetClientAccepts.None)
-			{
-				if (!clientData.ClientAccepts.HasFlag (req.ClientAccepts))
-				{
-					return false;
-				}
-			}
+			if (req.ClientAccepts != NetClientAccepts.None && !clientData.ClientAccepts.HasFlag(req.ClientAccepts)) return false;
 
 			return true;
 		}
