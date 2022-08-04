@@ -7,7 +7,13 @@ namespace NSUWatcher
 {
     public class NSUWatcherService : System.ServiceProcess.ServiceBase
 	{
-		NSUSys nsuSys;
+		private NSUSys _nsuSys;
+
+        public NSUWatcherService(string configFile = "")
+        {
+            if(!string.IsNullOrEmpty(configFile))
+                Config.CfgFile = configFile;
+        }
 
 		protected override void OnStart (string[] args)
 		{
@@ -15,9 +21,8 @@ namespace NSUWatcher
             {
                 NSULog.Info("NSUWatcherService", "Starting NSUWatcherService...");
                 ServiceName = "NSUWatcherService";
-                var c = Config.Instance();
-                nsuSys = new NSUSys();
-                if(!nsuSys.Start())
+                _nsuSys = new NSUSys(new Config());
+                if(!_nsuSys.Start())
                 {
                     this.CanStop = true;
                     NSULog.Error("NSUWatcherService", "Service failed to start. Exiting...");
@@ -26,6 +31,7 @@ namespace NSUWatcher
             catch(Exception ex)
             {
                 NSULog.Exception("NSUWatcherService.OnStart()", ex.Message);
+                this.CanStop = true;
                 throw;
             }
 		}
@@ -33,8 +39,8 @@ namespace NSUWatcher
 		protected override void OnStop ()
 		{
             NSULog.Info("NSUWatcherService", "Stopping NSUWatcherService...");
-            nsuSys.Stop();
-            nsuSys = null;
+            _nsuSys?.Stop();
+            _nsuSys = null;
 		}
 	}
 }
