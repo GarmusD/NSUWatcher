@@ -120,7 +120,7 @@ namespace NSUWatcher
             }
         }
 
-        public static void WriteDefaultsToIniFile()
+        public static void WriteConfigTemplateToFile(string filename)
         {
             string[] cfgLines = new string[]
             {
@@ -138,7 +138,7 @@ namespace NSUWatcher
                 @"dbuser=db_user_name",
                 @"dbpassword=db_password"
             };
-            File.WriteAllLines(CfgFile, cfgLines);
+            File.WriteAllLines(filename, cfgLines);
         }
 
 
