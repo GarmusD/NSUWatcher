@@ -1,106 +1,79 @@
-﻿using System;
-using System.Linq;
-using NSU.Shared.NSUTypes;
+﻿using System.Linq;
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
+using Serilog;
+using NSUWatcher.Interfaces.MCUCommands;
+using NSUWatcher.Interfaces.MCUCommands.From;
+using NSUWatcher.NSUSystem.Data;
+using NSUWatcher.Interfaces;
 using NSU.Shared;
-using Newtonsoft.Json.Linq;
-using NSUWatcher.NSUWatcherNet;
+using NSU.Shared.Serializer;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-    public class Collectors : NSUSysPartsBase
+    public class Collectors : NSUSysPartBase
     {
-        readonly string LogTag = "Collectors";
+        public override string[] SupportedTargets => new string[] { JKeys.Collector.TargetName, "COLLECTOR:" };
+        
         private readonly List<Collector> _collectors = new List<Collector>();
 
-        public Collectors(NSUSys sys, PartsTypes type)
-            : base(sys, type)
+        public Collectors(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.Collectors)
         {
         }
 
-        public override string[] RegisterTargets()
-        {
-            return new string[] { JKeys.Collector.TargetName, "COLLECTOR:" };
-        }
-
-        private Collector FindCollector(string name)
+        private Collector? FindCollector(string name)
         {
             return _collectors.FirstOrDefault(x => x.Name == name);
         }
 
-        private Collector FindCollector(byte cfg_pos)
-        {
-            return _collectors.FirstOrDefault(x => x.ConfigPos == cfg_pos);
-        }
 
-        public override void ProccessArduinoData(JObject data)
+        /// <summary>
+        /// Entry point for processing a messages from the MCU.
+        /// </summary>
+        /// <param name="command">Message to process</param>
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
-            switch ((string)data[JKeys.Generic.Action])
+            switch (command)
             {
-                case JKeys.Syscmd.Snapshot:
-                    if (data.Property(JKeys.Generic.Result) == null)
-                    {
-                        Collector cl = new Collector();
-                        cl.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, Collector.INVALID_VALUE);
-                        cl.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
-                        cl.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
-                        cl.CircPumpName = JSonValueOrDefault(data, JKeys.Collector.CircPumpName, string.Empty);
-                        cl.ActuatorsCount = JSonValueOrDefault(data, JKeys.Collector.ActuatorsCount, (byte)0);
+                case ICollectorSnapshot collectorSnapshot:
+                    ProcessCollectorSnapshot(collectorSnapshot);
+                    return;
 
-                        var ja = (JArray)data[JKeys.Collector.Valves];
-                        string content = JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config);
+                case ICollectorInfo collectorInfo:
+                    ProcessCollectorInfo(collectorInfo);
+                    return;
 
-                        int idx = 0;
-                        foreach (JObject jo in ja)
-                        {
-                            if (idx < cl.Actuators.Count)
-                            {
-                                cl.Actuators[idx].Type = (ActuatorType)(byte)jo[JKeys.Collector.ActuatorType];
-                                cl.Actuators[idx].RelayChannel = (byte)jo[JKeys.Collector.ActuatorChannel];
-                                if (content == JKeys.Content.ConfigPlus)
-                                    cl.Actuators[idx].Opened = JSonValueOrDefault(jo, JKeys.Generic.Status, false);// (bool)jo[JKeys.Generic.Status];
-                            }
-                            idx++;
-                        }
-                        cl.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.Collectors));
-                        _collectors.Add(cl);
-                    }
-                    break;
-
-                case JKeys.Action.Info:
-                    var col = FindCollector((string)data[JKeys.Generic.Name]);
-                    if (col != null)
-                    {
-                        JArray ja = (JArray)data[JKeys.Generic.Status];
-                        int idx = 0;
-                        foreach (string boolValue in ja)
-                        {
-                            if (idx < col.Actuators.Count)
-                            {
-                                col.Actuators[idx].Opened = Convert.ToBoolean(boolValue);
-                            }
-                            idx++;
-                        }
-                    }
-                    SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), data);
+                default:
+                    LogNotImplementedCommand(command);
                     break;
             }
         }
 
-        public override void ProccessNetworkData(NetClientData clientData, JObject data)
+        private void ProcessCollectorSnapshot(ICollectorSnapshot collectorSnapshot)
         {
-            try
-            {
-                //switch ((string)data[JKeys.Generic.Action])
-                //{
+            var dataContract = new CollectorData(collectorSnapshot);
+            Collector cl = new Collector(dataContract);
+            cl.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.Collectors));
+            _collectors.Add(cl);
 
-                //}
-            }
-            catch (Exception ex)
-            {
-                NSULog.Exception(LogTag, "ProccessNetworkData(): " + ex.Message);
-            }
+            cl.PropertyChanged += (s, e) => 
+            { 
+                if(s is Collector collector)
+                    OnPropertyChanged(collector, e.PropertyName);
+            };
+        }
+        
+        private void ProcessCollectorInfo(ICollectorInfo collectorInfo)
+        {
+            var col = FindCollector(collectorInfo.Name);
+            col?.UpdateActuatorStatus(collectorInfo.OpenedValves);
+        }
+
+
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        {
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            return null;
         }
 
         public override void Clear()

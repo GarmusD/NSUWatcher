@@ -1,57 +1,72 @@
 ﻿using System;
-using NSU.Shared.NSUTypes;
-using NSUWatcher.NSUWatcherNet;
-using Newtonsoft.Json.Linq;
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
+using Serilog;
+using NSUWatcher.Interfaces.MCUCommands;
+using NSUWatcher.Interfaces.MCUCommands.From;
+using NSUWatcher.NSUSystem.Data;
+using NSUWatcher.Interfaces;
+using NSU.Shared;
+using NSU.Shared.Serializer;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-    public class RelayModules : NSUSysPartsBase
+    public class RelayModules : NSUSysPartBase
     {
-        readonly string LogTag = "RelayModules";
-
         readonly List<RelayModule> _modules = new List<RelayModule>();
-        public RelayModules(NSUSys sys, PartsTypes type)
-            : base(sys, type)
+
+        public override string[] SupportedTargets => new string[] { JKeys.RelayModule.TargetName };
+
+        public RelayModules(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.RelayModules)
         {
         }
 
-        public override string[] RegisterTargets()
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
-            return new string[] { JKeys.RelayModule.TargetName };
-        }
-
-        public override void ProccessArduinoData(JObject data)
-        {
-            switch ((string)data[JKeys.Generic.Action])
+            switch (command)
             {
-                case JKeys.Syscmd.Snapshot:
-                    ProcessActionSnapshot(data);
-                    break;
+                case IRelaySnapshot snapshot:
+                    ProcessSnapshot(snapshot);
+                    return;
+
+                case IRelayInfo status:
+                    ProcessStatus(status);
+                    return;
+
+                default:
+                    LogNotImplementedCommand(command);
+                    return;
             }
         }
 
-        private void ProcessActionSnapshot(JObject data)
+        private void ProcessSnapshot(IRelaySnapshot snapshot)
         {
-            if (data.Property(JKeys.Generic.Result) == null)
-            {
-                var rm = new RelayModule();
-                rm.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, RelayModule.INVALID_VALUE);
-                rm.Enabled = JSonValueOrDefault(data, JKeys.Generic.Enabled, false);
-                rm.ActiveLow = JSonValueOrDefault(data, JKeys.RelayModule.ActiveLow, false);
-                rm.Inverted = JSonValueOrDefault(data, JKeys.RelayModule.Inverted, false);
-                if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
-                    rm.Flags = JSonValueOrDefault(data, JKeys.RelayModule.Flags, (byte)0);
+            var dataContract = new RelayModuleData(snapshot);
+            var rm = new RelayModule(dataContract);
+            rm.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.RelayModules));
+            _modules.Add(rm);
 
-                rm.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.RelayModules));
-                _modules.Add(rm);
+            rm.PropertyChanged += (s, e) =>
+            {
+                if (s is RelayModule relayModule)
+                    OnPropertyChanged(relayModule, e.PropertyName);
+            };
+
+        }
+        
+        private void ProcessStatus(IRelayInfo status)
+        {
+            for (var i = 0; i < _modules.Count; i++)
+            {
+                _modules[i].SetStatus(status.Values[i]);
             }
         }
 
-        public override void ProccessNetworkData(NetClientData clientData, JObject data)
+
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            return null;
         }
 
         public override void Clear()

@@ -1,54 +1,59 @@
-﻿using NSU.Shared;
+﻿using Serilog;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Timers;
 
 namespace NSUWatcher.NSUSystem
 {
-    public class DaylightSavingTimeHelper
+    public class DaylightSavingTimeHelper : IDisposable
     {
-        private readonly string LogTag = "TimeHelper";
+        public event EventHandler<EventArgs>? DaylightTimeChanged;
+        public bool TimeIsOk => CheckTimeIsOk();
+
+
+        private readonly ILogger _logger;
         private readonly Timer _timer;
         private DateTime _lastTime;
+        private bool _timeIsOk = false;
 
-        public bool TimeIsOk { get; private set; } = false;
-        public event EventHandler DaylightTimeChanged;
 
-        public DaylightSavingTimeHelper()
+        public DaylightSavingTimeHelper(ILogger logger, bool autoStart = true)
         {
+            _logger = logger.ForContext<DaylightSavingTimeHelper>() ?? throw new ArgumentNullException(nameof(logger), "Instance of ILogger cannot be null.");
             _timer = new Timer(5000);
             _timer.Elapsed += Timer_Elapsed;
+            if (autoStart) Start();
         }
 
         private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            var now = DateTime.Now;
-            var diff = now - _lastTime;
-            if(diff.TotalSeconds > 15)
+            if (TimeIsOk)
             {
-                if (now.Year >= 2018)
-                {
-                    TimeIsOk = true;
-                    NSULog.Debug(LogTag, $"Time change detected. From {_lastTime}, to {now}");
-                    DaylightTimeChanged?.Invoke(this, null);
+                TimeSpan diff;
+                if ((diff = DateTime.Now - _lastTime).TotalSeconds > 15)
+                {                    
+                    _logger.Debug($"DST change detected. From {_lastTime}, to {DateTime.Now}");
+                    _lastTime = DateTime.Now;
+                    var evt = DaylightTimeChanged;
+                    evt?.Invoke(this, EventArgs.Empty);
                 }
             }
-            _lastTime = now;
+        }
+
+        private bool CheckTimeIsOk()
+        {
+            if (!_timeIsOk)
+            {
+                _timeIsOk = DateTime.Now.Year >= 2022;
+                if (_timeIsOk) _lastTime = DateTime.Now;
+            }
+            return _timeIsOk;
         }
 
         public void Start()
         {
             if (!_timer.Enabled)
             {
-                var now = DateTime.Now;
-                if (now.Year >= 2018)
-                {
-                    TimeIsOk = true;
-                }
-                _lastTime = now;
+                CheckTimeIsOk();
                 _timer.Enabled = true;
             }
         }
@@ -56,7 +61,11 @@ namespace NSUWatcher.NSUSystem
         public void Stop()
         {
             _timer.Enabled = false;
-            _timer.Dispose();
+        }
+
+        public void Dispose()
+        {
+            _timer?.Dispose();
         }
     }
 }

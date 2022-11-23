@@ -1,85 +1,78 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using NSU.Shared;
 using NSU.Shared.NSUSystemPart;
-using NSU.Shared.NSUTypes;
-using NSUWatcher.NSUWatcherNet;
+using NSU.Shared.Serializer;
+using NSUWatcher.Interfaces;
+using NSUWatcher.Interfaces.MCUCommands;
+using NSUWatcher.Interfaces.MCUCommands.From;
+using NSUWatcher.NSUSystem.Data;
+using Serilog;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-    public class SystemFans : NSUSysPartsBase
+    public class SystemFans : NSUSysPartBase
     {
-        private const string LogTag = "SystemFans";
-
+        public override string[] SupportedTargets => new string[] { JKeys.SystemFan.TargetName };
+        
         private readonly List<SystemFan> _systemFans = new List<SystemFan>();
 
-        public SystemFans(NSUSys sys, PartsTypes type) : base(sys, type) {}
+        public SystemFans(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.SystemFan) {}
+
+        private SystemFan? FindSystemFan(string name)
+        {
+            return _systemFans.FirstOrDefault(f => f.Name == name);
+        }
+
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        {
+            switch (command)
+            {
+                case ISystemFanSnapshot snapshot:
+                    ProcessSnapshot(snapshot);
+                    return;
+
+                case ISystemFanInfo fanInfo:
+                    ProcessInfo(fanInfo);
+                    return;
+
+                default:
+                    LogNotImplementedCommand(command);
+                    break;
+            }
+        }
+
+        private void ProcessInfo(ISystemFanInfo fanInfo)
+        {
+            var fan = FindSystemFan(fanInfo.Name);
+            if (fan != null) fan.CurrentPWM = fan.CurrentPWM;
+            else _logger.Warning($"SystemFan with name '{fanInfo.Name}' not founded.");
+        }
+
+        private void ProcessSnapshot(ISystemFanSnapshot snapshot)
+        {
+            var dataContract = new SystemFanData(snapshot);
+            SystemFan sf = new SystemFan(dataContract);
+            _systemFans.Add(sf);
+            sf.PropertyChanged += (s, e) =>
+            { 
+                if(s is SystemFan systemFan)
+                {
+                    OnPropertyChanged(systemFan, e.PropertyName);
+                }
+            };
+        }
+
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        {
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            return null;
+        }
 
         public override void Clear()
         {
             _systemFans.Clear();
-        }
-
-        public override void ProccessArduinoData(JObject data)
-        {
-            string act = (string)data[JKeys.Generic.Action];
-            switch (act)
-            {
-                case JKeys.Syscmd.Snapshot:
-                    ProcessActionSnapshot(data);
-                    break;
-                case JKeys.Generic.Status:
-                    ProcessActionStatus(data);
-                    break;
-            }
-        }
-
-        private void ProcessActionSnapshot(JObject data)
-        {
-            if (data.Property(JKeys.Generic.Result) == null)
-            {
-                SystemFan sf = new SystemFan();
-                sf.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, SystemFan.INVALID_VALUE);
-                sf.Enabled = JSonValueOrDefault(data, JKeys.Generic.Enabled, false);
-                sf.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
-                sf.TempSensorName = JSonValueOrDefault(data, JKeys.SystemFan.TSensorName, string.Empty);
-                sf.MinTemp = JSonValueOrDefault(data, JKeys.SystemFan.MinTemp, 0f);
-                sf.MaxTemp = JSonValueOrDefault(data, JKeys.SystemFan.MaxTemp, 0f);
-
-                if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
-                    sf.CurrentPWM = JSonValueOrDefault(data, JKeys.Generic.Value, (byte)0);
-
-                _systemFans.Add(sf);
-            }
-        }
-
-        private void ProcessActionStatus(JObject data)
-        {
-            string name = (string)data[JKeys.Generic.Name] ?? string.Empty;
-            if (data[JKeys.Generic.Value] != null && !string.IsNullOrEmpty(name))
-            {
-                foreach (var item in _systemFans)
-                {
-                    if (item.Name == name)
-                    {
-                        item.CurrentPWM = (byte)data[JKeys.Generic.Value];
-                    }
-                }
-            }
-        }
-
-        public override void ProccessNetworkData(NetClientData clientData, JObject data)
-        {
-            //
-        }
-
-        public override string[] RegisterTargets()
-        {
-            return new string[] { JKeys.SystemFan.TargetName };
         }
     }
 }

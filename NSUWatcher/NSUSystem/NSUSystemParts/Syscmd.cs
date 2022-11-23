@@ -1,307 +1,223 @@
 ﻿using System;
-using NSU.Shared.NSUTypes;
+using Serilog;
+using NSUWatcher.Interfaces.MCUCommands;
+using NSUWatcher.Interfaces.MCUCommands.From;
+using NSU.Shared.NSUSystemPart;
+using NSUWatcher.NSUSystem.Data;
+using System.Threading.Tasks;
+using NSU.Shared.DataContracts;
+using NSUWatcher.Interfaces;
 using NSU.Shared;
-using Newtonsoft.Json.Linq;
-using NSU.Shared.NSUNet;
-using NSUWatcher.NSUWatcherNet;
-using System.Threading;
+using NSU.Shared.Serializer;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-    public partial class Syscmd : NSUSysPartsBase
+    public partial class Syscmd : NSUSysPartBase
     {
-        readonly string LogTag = "SystemCMD";
+        public MCU SystemStatus => _mcu;
 
-        private readonly NSUSys _nsuSys;
+        public override string[] SupportedTargets => new string[] { JKeys.Syscmd.TargetName, "SYSCMD:" };
 
-        public Syscmd(NSUSys sys, PartsTypes part) : base(sys, part)
+        private readonly MCU _mcu;
+        private readonly DaylightSavingTimeHelper _dstHelper;
+
+        public Syscmd(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.System)
         {
-            _nsuSys = sys;
-        }
+            sys.CmdCenter.SystemMessageReceived += CmdCenter_SystemMessageReceived;
+            _mcu = new MCU();
+            _mcu.PropertyChanged += Mcu_PropertyChanged;
 
-        public override string[] RegisterTargets()
-        {
-            return new string[] { JKeys.Syscmd.TargetName, "SYSCMD:" };
-        }
-
-        public override void ProccessArduinoData(JObject data)
-        {
-            switch ((string)data[JKeys.Generic.Action])
+            _dstHelper = new DaylightSavingTimeHelper(logger);
+            _dstHelper.Start();
+            _dstHelper.DaylightTimeChanged += (s, e) =>
             {
-                case JKeys.Syscmd.SystemStatus:
-                    switch ((string)data[JKeys.Generic.Value])
-                    {
-                        case JKeys.Syscmd.SystemBooting:
-                            nsusys.ArduinoStatus = MCUStatus.Booting;
-                            break;
-                        case JKeys.Syscmd.ReadyPauseBoot:
-                            nsusys.ArduinoStatus = MCUStatus.BootPauseReady;
-                            if (_nsuSys.Config.ArduinoPauseBoot)
-                            {
-                                //Clear pause boot flag for next boot
-                                _nsuSys.Config.ArduinoPauseBoot = false;
-                                PauseBoot();
-                            }
-                            break;
-                        case JKeys.Syscmd.SystemBootPaused:
-                            nsusys.ArduinoStatus = MCUStatus.BootPaused;
-                            //Inform users about this state
-                            break;
-                        case JKeys.Syscmd.SystemRunning:
-                            nsusys.ArduinoStatus = MCUStatus.Running;
-                            SetArduinoClock();
-                            Thread.Sleep(2000);
-                            ExecuteUserCommands();
-                            Thread.Sleep(1500);
-                            ExecuteArduinoSnapshot();
-                            break;
-                    }
+                if (_mcu.Status == MCUStatus.Running)
+                    SetMcuClock();
+            };
+        }
+
+        private void CmdCenter_SystemMessageReceived(object? sender, Interfaces.SystemMessageEventArgs e)
+        {
+            switch (e.Message)
+            {
+                case Interfaces.SysMessage.TransportConnected:
+                    ProcessMsgTransportStarted();
                     break;
-                case JKeys.Syscmd.Snapshot:
-                    var res = (string)data[JKeys.Generic.Result];
-                    if (res.Equals(JKeys.Result.Done))
-                    {
-                        foreach (var item in nsusys.NSUParts)
-                        {
-                            try
-                            {
-                                item.Part.ProccessArduinoData(data);
-                            }
-                            catch (Exception ex)
-                            {
-                                NSULog.Debug(LogTag, item.PartType.ToString() + " Exception: " + ex);
-                            }
-                        }
-                        nsusys.XMLConfig.Save();
-                        nsusys.MakeReady();
-                    }
+                case Interfaces.SysMessage.TransportConnectFailed:
+                case Interfaces.SysMessage.TransportDisconnected:
+                    // Hold last values or clear?
                     break;
-                case JKeys.Syscmd.TimeChanged:
-                    SetArduinoClock();
+                case Interfaces.SysMessage.McuCrashed:
+                    
                     break;
-                case JKeys.Generic.Error:
-                    var value = (string)data[JKeys.Generic.Value];
-                    switch (value)
-                    {
-                        case "notjson":
-                            //var vs = new JObject();
-                            //vs.Add(JKeys.Generic.Target, JKeys.Syscmd.TargetName);
-                            //vs.Add(JKeys.Generic.Action, JKeys.Syscmd.SystemStatus);
-                            //SendToArduino(vs);
-                            break;
-                    }
+                default:
                     break;
             }
         }
 
-        public override void ProccessNetworkData(NetClientData clientData, JObject data)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
-            switch ((string)data[JKeys.Generic.Action])
+            switch (command)
             {
-                case JKeys.Syscmd.Snapshot:
-                    ActionSnapshot(clientData);
+                case ISystemStatus systemStatus:
+                    ProcessSystemStatusCommand(systemStatus);
                     break;
-                case JKeys.SystemAction.Login:
-                    ActionLogin(clientData, data);
+
+                case ISystemSnapshotDone systemSnapshotDone:
+                    ProcessSnapshotDone(systemSnapshotDone);
                     break;
-                case JKeys.SystemAction.Handshake:
-                    nsusys.SendServerHandshakeToClient(clientData);
-                    break;
-                case JKeys.SystemAction.PushID:
-                    ActionSetPushID(clientData, data);
+
+                default:
+                    _logger.Warning($"Not implemented command from mcu: {command.GetType().FullName}");
                     break;
             }
         }
 
-        private void SetArduinoClock()
+        private void ProcessSystemStatusCommand(ISystemStatus systemStatus)
         {
-            if (nsusys.SystemTime.TimeIsOk && nsusys.ArduinoStatus == MCUStatus.Running)
+            McuStatusData data = new McuStatusData(systemStatus);
+            _mcu.SetData(data);
+        }
+
+        private void ProcessSnapshotDone(ISystemSnapshotDone systemSnapshotDone)
+        {
+            foreach (var nsuPart in _nsuSys.NSUParts)
             {
-                NSULog.Debug(LogTag, "Setting time for MCU...");
-                DateTime dt = DateTime.Now;
-                var vs = new JObject
-                {
-                    [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
-                    [JKeys.Generic.Action] = JKeys.Syscmd.SetTime,
-                    [JKeys.Syscmd.Year] = dt.Year,
-                    [JKeys.Syscmd.Month] = dt.Month,
-                    [JKeys.Syscmd.Day] = dt.Day,
-                    [JKeys.Syscmd.Hour] = dt.Hour,
-                    [JKeys.Syscmd.Minute] = dt.Minute,
-                    [JKeys.Syscmd.Second] = dt.Second
-                };
-                SendToArduino(vs);
+                TrySendToNsuPart(nsuPart, systemSnapshotDone);
             }
-            else
+            _nsuSys.SetReady(true);
+        }
+
+        private void TrySendToNsuPart(NSUSysPartBase item, ISystemSnapshotDone systemSnapshotDone)
+        {
+            try
             {
-                NSULog.Debug(LogTag, $"Can't set time for MCU: [nsusys.SystemTime.TimeIsOk: {nsusys.SystemTime.TimeIsOk}, nsusys.ArduinoStatus: {nsusys.ArduinoStatus}]");
+                item.ProcessCommandFromMcu(systemSnapshotDone);
             }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, $"{item.PartType} Exception on ShapshotDone:");
+            }
+        }
+
+        private void ProcessMcuCrashed()
+        {
+            _logger.Debug("ProcessMcuCrashed()");
+            _nsuSys.SetReady(false);
+            _mcu.Status = MCUStatus.Off;
+        }
+
+        private void ProcessMsgTransportStarted()
+        {
+            _logger.Debug("ProcessMsgTransportStarted()");
+            // Workaround for the very first command - on mcu side it comes damaged
+            _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands.EmptyCommand().Send();
+            _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands.GetMcuStatus().Send();
+        }
+
+        private void Mcu_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(_mcu.Status))
+                Mcu_StatusPropertyChanged();
+        }
+
+        private void Mcu_StatusPropertyChanged()
+        {
+            switch (_mcu.Status)
+            {
+                case MCUStatus.Off:
+                    break;
+
+                case MCUStatus.Booting:
+                    break;
+
+                case MCUStatus.BootPauseReady:
+                    OnMcuStatus_BootPauseReady();
+                    break;
+
+                case MCUStatus.BootPaused:
+                    break;
+
+                case MCUStatus.Running:
+                    OnMcuStatus_Running();
+                    break;
+
+                default:
+                    _logger.Error($"Mcu_StatusPropertyChanged(): Status '{_mcu.Status}' not implemented.");
+                    return;
+            }
+        }
+
+        private void OnMcuStatus_BootPauseReady()
+        {
+            if (_nsuSys.Config.McuPauseBoot)
+            {
+                //Clear pause boot flag for next boot
+                _nsuSys.Config.McuPauseBoot = false;
+                PauseBoot();
+            }
+        }
+
+        private void OnMcuStatus_Running()
+        {
+            _ = Task.Run(async () =>
+            {
+                SetMcuClock();
+                await Task.Delay(2000);
+                ExecuteUserCommands();
+                await Task.Delay(1500);
+                RequestNsuSnapshot();
+            });
+        }
+
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        {
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            return null;
+        }
+
+        public void SetMcuClock()
+        {
+            _logger.Information("Setting time for MCU...");
+            DateTime dt = DateTime.Now;
+            _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands
+                .SetTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second)
+                .Send();
         }
 
         private void ExecuteUserCommands()
         {
-            foreach (string item in _nsuSys.Config.UserCommands)
+            if (_nsuSys.Config.CmdsToExec == null) return;
+            foreach (string item in _nsuSys.Config.CmdsToExec)
             {
-                NSULog.Debug(LogTag, "UserCmd: " + item);
-                SendToArduino("user " + item);
+                _logger.Debug("UserCmd: " + item);
+                _nsuSys.CmdCenter.ExecManualCommand(item);
             }
         }
 
-        private void ExecuteArduinoSnapshot()
+        private void RequestNsuSnapshot()
         {
             //Clear before new snapshot
-            foreach (var item in nsusys.NSUParts)
+            foreach (var item in _nsuSys.NSUParts)
             {
-                item.Part.Clear();
+                item.Clear();
             }
-            nsusys.XMLConfig.Clear();
+            _nsuSys.XMLConfig.Clear();
 
-            var vs = new JObject
-            {
-                [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
-                [JKeys.Generic.Action] = JKeys.Syscmd.Snapshot
-            };
-            SendToArduino(vs);
+            _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands.RequestSnapshot().Send();
         }
 
         private void PauseBoot()
         {
-            var vs = new JObject
-            {
-                [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
-                [JKeys.Generic.Action] = JKeys.Syscmd.PauseBoot
-            };
-            SendToArduino(vs);
-        }
-
-        private void ActionSnapshot(NetClientData clientData)
-        {
-            var req = NetClientRequirements.CreateStandartClientOnly(clientData, true, false);
-            if (NetClientRequirements.Check(req, clientData))
-            {
-                nsusys.XMLConfig.Save();
-                var jo = new JObject
-                {
-                    [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
-                    [JKeys.Generic.Action] = JKeys.Syscmd.Snapshot,
-                    [JKeys.Generic.Result] = JKeys.Result.Ok,
-                    [JKeys.Generic.Value] = nsusys.XMLConfig.GetXDocAsString()
-                };
-                nsusys.SetLastCmdID(clientData, jo);
-                nsusys.SendToClient(req, jo);
-                clientData.IsReady = true;
-            }
-        }
-
-        private void ActionLogin(NetClientData clientData, JObject data)
-        {
-            NSULog.Debug(LogTag, "ActionLogin.");
-            switch ((string)data[JKeys.Generic.Content])
-            {
-                case JKeys.ActionLogin.LoginWithCredentials:
-                    NSULog.Debug(LogTag, "ActionLogin: Logging with Credentials.");
-                    clientData.UserData = nsusys.Users.Login((string)data[JKeys.ActionLogin.UserName], (string)data[JKeys.ActionLogin.Password]);
-                    if (clientData.UserData != null)
-                    {
-                        clientData.LoggedIn = true;
-                        if (data.Property(JKeys.UserInfo.UserAccepts) != null)
-                        {
-                            clientData.ClientAccepts = (NetClientAccepts)(int)data[JKeys.UserInfo.UserAccepts];
-                        }
-                        JObject jo = new JObject();
-                        jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                        jo[JKeys.Generic.Action] = JKeys.SystemAction.Login;
-                        jo[JKeys.Generic.Result] = JKeys.Result.Ok;
-                        jo[JKeys.ActionLogin.DeviceID] = clientData.UserData.DeviceId;
-                        jo[JKeys.ActionLogin.Hash] = clientData.UserData.Hash;
-                        jo[JKeys.ActionLogin.NeedChangePassword] = clientData.UserData.NeedChangePassword;
-                        nsusys.SetLastCmdID(clientData, jo);
-                        SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                    }
-                    else
-                    {
-                        clientData.LoggedIn = false;
-                        clientData.ClientAccepts = NetClientAccepts.None;
-                        clientData.IsReady = false;
-
-                        JObject jo = new JObject();
-                        jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                        jo[JKeys.Generic.Action] = JKeys.SystemAction.Login;
-                        jo[JKeys.Generic.Result] = JKeys.Result.Error;
-                        jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.Login.InvalidUsrNamePassword;
-                        nsusys.SetLastCmdID(clientData, jo);
-                        SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                    }
-                    return;
-                case JKeys.ActionLogin.LoginWithHash:
-                    ProcessActionLoginWithHash(clientData, data);
-                    return;
-            }
-        }
-
-        private void ProcessActionLoginWithHash(NetClientData clientData, JObject data)
-        {
-            NSULog.Debug(LogTag, "ActionLogin: Logging in with Hash");
-            clientData.UserData = nsusys.Users.LoginUsingHash((string)data[JKeys.ActionLogin.DeviceID], (string)data[JKeys.ActionLogin.Hash]);
-            if (clientData.UserData != null)
-            {
-                clientData.LoggedIn = true;
-                if (data.Property(JKeys.UserInfo.UserAccepts) != null)
-                {
-                    clientData.ClientAccepts = (NetClientAccepts)(int)data[JKeys.UserInfo.UserAccepts];
-                }
-                JObject jo = new JObject();
-                jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                jo[JKeys.Generic.Action] = JKeys.SystemAction.Login;
-                jo[JKeys.Generic.Result] = JKeys.Result.Ok;
-                jo[JKeys.ActionLogin.DeviceID] = clientData.UserData.DeviceId;
-                jo[JKeys.ActionLogin.Hash] = clientData.UserData.Hash;
-                jo[JKeys.ActionLogin.NeedChangePassword] = clientData.UserData.NeedChangePassword;
-                nsusys.SetLastCmdID(clientData, jo);
-                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-            }
-            else
-            {
-                clientData.LoggedIn = false;
-                clientData.ClientAccepts = NetClientAccepts.None;
-                clientData.IsReady = false;
-
-                JObject jo = new JObject();
-                jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                jo[JKeys.Generic.Action] = JKeys.SystemAction.Login;
-                jo[JKeys.Generic.Result] = JKeys.Result.Error;
-                jo[JKeys.Generic.ErrCode] = JKeys.ErrCodes.Login.InvalidHash;
-                nsusys.SetLastCmdID(clientData, jo);
-                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-            }
-        }
-
-        private void ActionSetPushID(NetClientData clientData, JObject data)
-        {
-            if (!clientData.LoggedIn)
-            {
-                JObject jo = JResponses.ResultError(JKeys.Syscmd.TargetName, JKeys.SystemAction.PushID, "authentication_required");
-                nsusys.SetLastCmdID(clientData, jo);
-                SendToClient(NetClientRequirements.CreateStandartClientOnly(clientData), jo);
-                return;
-            }
-            if (data.Property(JKeys.Generic.Value) != null)
-            {
-                var pid = (string)data[JKeys.Generic.Value];
-                if (!string.IsNullOrEmpty(pid) && nsusys.PushNotifications.ValidateDeviceType(clientData.UserData.DeviceType))
-                {
-                    var ret = nsusys.Users.SetPushID(clientData.UserData, pid);
-                    if (!string.IsNullOrEmpty(ret))
-                    {
-                        var jo = JResponses.ResultError(JKeys.Syscmd.TargetName, JKeys.SystemAction.PushID, ret);
-                    }
-                }
-            }
+            _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands.PauseBoot().Send();
         }
 
         public override void Clear()
         {
             //
+            _mcu.Status = MCUStatus.Off;
         }
+
+
     }
 }

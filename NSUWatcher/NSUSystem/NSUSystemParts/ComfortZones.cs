@@ -1,159 +1,109 @@
 ﻿using System;
-using NSU.Shared.NSUTypes;
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
-using Newtonsoft.Json.Linq;
-using NSU.Shared;
-using NSUWatcher.NSUWatcherNet;
 using System.Linq;
+using Serilog;
+using NSUWatcher.Interfaces.MCUCommands;
+using NSUWatcher.Interfaces.MCUCommands.From;
+using NSUWatcher.NSUSystem.Data;
+using NSUWatcher.Interfaces;
+using NSU.Shared;
+using NSU.Shared.Serializer;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-    public class ComfortZones : NSUSysPartsBase
+    public class ComfortZones : NSUSysPartBase
     {
-        readonly string LogTag = "ComfortZones";
+        public override string[] SupportedTargets => new string[] { JKeys.ComfortZone.TargetName, "CZONE:" };
+
         private readonly List<ComfortZone> _comfZones = new List<ComfortZone>();
 
-        public ComfortZones(NSUSys sys, PartsTypes type)
-            : base(sys, type)
-        {
-        }
+        public ComfortZones(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.ComfortZones) { }
 
-        public override string[] RegisterTargets()
-        {
-            return new string[] { JKeys.ComfortZone.TargetName, "CZONE:" };
-        }
-
-        public ComfortZone FindComfortZone(int idx)
+        public ComfortZone? FindComfortZone(int idx)
         {
             return _comfZones.FirstOrDefault(x => x.ConfigPos == idx);
         }
 
-        public ComfortZone FindComfortZone(string name)
+        public ComfortZone? FindComfortZone(string name)
         {
             return _comfZones.FirstOrDefault(x => x.Name == name);
         }
 
-        public override void ProccessArduinoData(JObject data)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
-            switch ((string)data[JKeys.Generic.Action])
+            switch (command)
             {
-                case JKeys.Syscmd.Snapshot:
-                    ProcessActionSnapshot(data);
-                    break;
-                case JKeys.Action.Info:
-                    ProcessActionInfo(data);
-                    break;
-            }
-        }
-
-        private void ProcessActionSnapshot(JObject data)
-        {
-            if (data.Property(JKeys.Generic.Result) == null)
-            {
-                ComfortZone czn = new ComfortZone();
-                czn.ConfigPos = JSonValueOrDefault(data, JKeys.Generic.ConfigPos, ComfortZone.INVALID_VALUE);
-                czn.Enabled = Convert.ToBoolean(JSonValueOrDefault(data, JKeys.Generic.Enabled, (byte)0));
-                czn.Name = JSonValueOrDefault(data, JKeys.Generic.Name, string.Empty);
-                czn.Title = JSonValueOrDefault(data, JKeys.ComfortZone.Title, string.Empty);
-                czn.CollectorName = JSonValueOrDefault(data, JKeys.ComfortZone.CollectorName, string.Empty);
-                czn.Actuator = JSonValueOrDefault(data, JKeys.ComfortZone.Actuator, ComfortZone.INVALID_VALUE);
-                czn.Histeresis = JSonValueOrDefault(data, JKeys.ComfortZone.Histeresis, 0);
-                czn.RoomSensorName = JSonValueOrDefault(data, JKeys.ComfortZone.RoomSensorName, string.Empty);
-                czn.RoomTempHi = JSonValueOrDefault(data, JKeys.ComfortZone.RoomTempHi, 0f);
-                czn.RoomTempLow = JSonValueOrDefault(data, JKeys.ComfortZone.RoomTempLow, 0f);
-                czn.FloorSensorName = JSonValueOrDefault(data, JKeys.ComfortZone.FloorSensorName, string.Empty);
-                czn.FloorTempHi = JSonValueOrDefault(data, JKeys.ComfortZone.FloorTempHi, 0f);
-                czn.FloorTempLow = JSonValueOrDefault(data, JKeys.ComfortZone.FloorTempLow, 0f);
-
-                if (JSonValueOrDefault(data, JKeys.Generic.Content, JKeys.Content.Config) == JKeys.Content.ConfigPlus)
-                {
-                    czn.CurrentRoomTemperature = JSonValueOrDefault(data, JKeys.ComfortZone.CurrentRoomTemp, 0f);
-                    czn.CurrentFloorTemperature = JSonValueOrDefault(data, JKeys.ComfortZone.CurrentFloorTemp, 0f);
-                    czn.ActuatorOpened = JSonValueOrDefault(data, JKeys.ComfortZone.ActuatorOpened, false);
-                }
-                czn.AttachXMLNode(nsusys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.ComfortZones));
-                czn.OnFloorTemperatureChanged += OnFloorTemperatureChangedHandler;
-                czn.OnRoomTemperatureChanged += OnRoomTemperatureChangedHandler;
-                czn.OnActuatorOpenedChanged += OnActuatorOpenedChangedHandler;
-                _comfZones.Add(czn);
-            }
-        }
-
-        private void ProcessActionInfo(JObject data)
-        {
-            string name = (string)data[JKeys.Generic.Name];
-            var cz = FindComfortZone(name);
-            if (cz != null)
-            {
-                switch ((string)data[JKeys.Generic.Content])
-                {
-                    case JKeys.ComfortZone.CurrentRoomTemp:
-                        cz.CurrentRoomTemperature = (float)data[JKeys.Generic.Value];
-                        break;
-                    case JKeys.ComfortZone.CurrentFloorTemp:
-                        cz.CurrentFloorTemperature = (float)data[JKeys.Generic.Value];
-                        break;
-                    case JKeys.ComfortZone.ActuatorOpened:
-                        cz.ActuatorOpened = (bool)data[JKeys.Generic.Value];
-                        break;
-                }
-            }
-        }
-
-        public override void ProccessNetworkData(NetClientData clientData, JObject data)
-        {
-            switch ((string)data[JKeys.Generic.Action])
-            {
-                case JKeys.Action.Get:
+                case IComfortZoneSnapshot snapshot:
+                    ProcessActionSnapshot(snapshot);
                     return;
-                case JKeys.Action.Set:
-                    //check user access
+
+                case IComfortZoneRoomTempInfo roomTempInfo:
+                    ProcessCurrentRoomTemp(roomTempInfo);
+                    return;
+
+                case IComfortZoneFloorTempInfo floorTempInfo:
+                    ProcessCurrentFloorTemp(floorTempInfo);
+                    return;
+
+                case IComfortZoneActuatorStatus actuatorStatus:
+                    ProcessActuatorStatus(actuatorStatus);
+                    return;
+
+                case IComfortZoneLowTempMode lowTempMode:
+                    ProcessLowTempMode(lowTempMode);
+                    return;
+
+                default:
+                    LogNotImplementedCommand(command);
                     return;
             }
         }
 
-        private void OnActuatorOpenedChangedHandler(object sender, ActuatorOpenedEventArgs e)
+        private void ProcessCurrentRoomTemp(IComfortZoneRoomTempInfo roomTempInfo)
         {
-            NSULog.Debug(LogTag, "OnValveOpenedChangedHandler(). Creating Jobject()");
-            JObject jo = new JObject
-            {
-                [JKeys.Generic.Target] = JKeys.ComfortZone.TargetName,
-                [JKeys.Generic.Action] = JKeys.Action.Info,
-                [JKeys.Generic.Name] = (sender as ComfortZone).Name,
-                [JKeys.Generic.Content] = JKeys.ComfortZone.ActuatorOpened,
-                [JKeys.Generic.Value] = e.Opened
-            };
-            SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
+            var cz = FindComfortZone(roomTempInfo.Name);
+            if (cz != null) cz.CurrentRoomTemperature = roomTempInfo.Value;
         }
 
-        private void OnRoomTemperatureChangedHandler(object sender, TempChangedEventArgs e)
+        private void ProcessCurrentFloorTemp(IComfortZoneFloorTempInfo floorTempInfo)
         {
-            NSULog.Debug(LogTag, "OnRoomTemperatureChangedHandler(). Creating Jobject()");
-            JObject jo = new JObject
-            {
-                [JKeys.Generic.Target] = JKeys.ComfortZone.TargetName,
-                [JKeys.Generic.Action] = JKeys.Action.Info,
-                [JKeys.Generic.Name] = (sender as ComfortZone).Name,
-                [JKeys.Generic.Content] = JKeys.ComfortZone.CurrentRoomTemp,
-                [JKeys.Generic.Value] = e.Temperature
-            };
-            SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
+            var cz = FindComfortZone(floorTempInfo.Name);
+            if (cz != null) cz.CurrentFloorTemperature = floorTempInfo.Value;
+        }
+        
+        private void ProcessActuatorStatus(IComfortZoneActuatorStatus actuatorStatus)
+        {
+            var cz = FindComfortZone(actuatorStatus.Name);
+            if (cz != null) cz.ActuatorOpened = actuatorStatus.Value;
+        }
+        
+        private void ProcessLowTempMode(IComfortZoneLowTempMode lowTempMode)
+        {
+            var cz = FindComfortZone(lowTempMode.Name);
+            if (cz != null) cz.LowTempMode = lowTempMode.Value;
         }
 
-        private void OnFloorTemperatureChangedHandler(object sender, TempChangedEventArgs e)
+        private void ProcessActionSnapshot(IComfortZoneSnapshot snapshot)
         {
-            NSULog.Debug(LogTag, "OnFloorTemperatureChangedHandler(). Creating Jobject()");
-            JObject jo = new JObject
+            var dataContract = new ComfortZoneData(snapshot);
+            ComfortZone czn = new ComfortZone(dataContract);
+            czn.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.ComfortZones));
+            _comfZones.Add(czn);
+
+            czn.PropertyChanged += (s, e) => 
             {
-                [JKeys.Generic.Target] = JKeys.ComfortZone.TargetName,
-                [JKeys.Generic.Action] = JKeys.Action.Info,
-                [JKeys.Generic.Name] = (sender as ComfortZone).Name,
-                [JKeys.Generic.Content] = JKeys.ComfortZone.CurrentFloorTemp,
-                [JKeys.Generic.Value] = e.Temperature
+                if (s is ComfortZone comfortZone)
+                    OnPropertyChanged(comfortZone, e.PropertyName);
             };
-            SendToClient(NetClientRequirements.CreateStandartAcceptInfo(), jo);
         }
+
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        {
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            return null;
+        }
+
 
         public override void Clear()
         {

@@ -1,17 +1,67 @@
-﻿using NSU.Shared.NSUTypes;
-using NSUWatcher.NSUWatcherNet;
-using Newtonsoft.Json.Linq;
-using NSU.Shared;
+﻿using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
+using Serilog;
+using NSUWatcher.Interfaces.MCUCommands;
+using System.CommandLine;
+using NSUWatcher.Interfaces;
+using NSU.Shared;
+using System.CommandLine.Builder;
+using System.CommandLine.IO;
+using System.CommandLine.Parsing;
+using NSU.Shared.DTO.ExtCommandContent;
+using NSU.Shared.Serializer;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-    public class Usercmd : NSUSysPartsBase
+    public class Usercmd : NSUSysPartBase
     {
-        private const string LogTag = "UserCMD";
-        public Usercmd(NSUSys sys, PartsTypes type) : base(sys, type)
+        public override string[] SupportedTargets => new string[] { JKeys.UserCmd.TargetName };
+
+        private readonly RootCommand _rootCommand;
+        private readonly Parser _parser;
+        private readonly UserConsole _userConsole;
+
+        public Usercmd(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.UserCommand)
         {
+            _userConsole = new UserConsole(logger);
+            _rootCommand = new RootCommand("Supported user commands")
+            {
+                SetupRebootCommand(),
+            };
+            _parser = new CommandLineBuilder(_rootCommand)
+                //.AddMiddleware(async (context, next) =>
+                //{
+                //    context.Console = new UserConsole(logger);
+                //    await next(context);
+                //})
+                .UseDefaults()
+                .Build();
+        }
+
+        private Command SetupRebootCommand()
+        {
+            Command reboot = new Command("reboot");
+            var arg = new Argument<string>().FromAmong("soft", "hard");
+            reboot.AddArgument(arg);
+            reboot.SetHandler((argValue) =>
+            {
+                ExecuteRebootCommand(argValue);
+            }, arg);
+            return reboot;
+        }
+
+        private void ExecuteRebootCommand(string argument)
+        {
+            switch (argument)
+            {
+                case "soft":
+                    return;
+                case "hard":
+                    return;
+                default:
+                    _logger.Information($"Unsupported argument '{argument}' provided.");
+                    break;
+            }
         }
 
         public override void Clear()
@@ -19,9 +69,24 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             //
         }
 
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        {
+
+        }
+
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        {
+            UserCmdExecCommandContent? cmdContent = _serializer.Deserialize<UserCmdExecCommandContent>(command.Content);
+            if(cmdContent != null)
+            {
+                _parser.Invoke(cmdContent.Value.Command, _userConsole);
+            }
+            return null;
+        }
+        /*
         public override void ProccessArduinoData(JObject data)
         {
-            NSULog.Debug(LogTag, $"ProccessArduinoData(JObject data:{data})");
+            _logger.Debug($"ProccessArduinoData(JObject data:{data})");
             if (data.Property(JKeys.Generic.Value) != null)
             {
                 string cmd = (string)data[JKeys.Generic.Value];
@@ -36,18 +101,20 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
                     if(args[1].Trim().Equals("hard"))
                     {
-                        NSULog.Debug(LogTag, "Rebooting Arduino using comm DTR...");
+                        _logger.Debug("Rebooting Arduino using comm DTR...");
                         //nsusys.cmdCenter.Stop();
                         //nsusys.cmdCenter.Start(true);
-                        nsusys.cmdCenter.SendDTRSignal();
+                        _nsuSys.CmdCenter.SendDTRSignal();
                     }
                     else if (args[1].Trim().Equals("soft"))
                     {
-                        NSULog.Debug(LogTag, "Rebooting Arduino (software loop)...");
-                        JObject jo = new JObject();
-                        jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                        jo[JKeys.Generic.Action] = JKeys.Syscmd.RebootSystem;
-                        jo[JKeys.Generic.Value] = "soft";
+                        _logger.Debug("Rebooting Arduino (software loop)...");
+                        JObject jo = new JObject
+                        {
+                            [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
+                            [JKeys.Generic.Action] = JKeys.Syscmd.RebootSystem,
+                            [JKeys.Generic.Value] = "soft"
+                        };
                         SendToArduino(jo);
                     }
                     return;
@@ -55,21 +122,25 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
                 if (cmd.StartsWith("status", System.StringComparison.InvariantCultureIgnoreCase))
                 {
-                    NSULog.Debug(LogTag, "Getting system status...");
-                    JObject jo = new JObject();
-                    jo[JKeys.Generic.Target] = JKeys.Syscmd.TargetName;
-                    jo[JKeys.Generic.Action] = JKeys.Syscmd.SystemStatus;
+                    _logger.Debug("Getting system status...");
+                    JObject jo = new JObject
+                    {
+                        [JKeys.Generic.Target] = JKeys.Syscmd.TargetName,
+                        [JKeys.Generic.Action] = JKeys.Syscmd.SystemStatus
+                    };
                     SendToArduino(jo);
                     return;
                 }
 
                 if (cmd.StartsWith("ikurimas", System.StringComparison.InvariantCultureIgnoreCase))
                 {
-                    NSULog.Debug(LogTag, "WoodBoiler Ikurimas...");
-                    JObject jo = new JObject();
-                    jo[JKeys.Generic.Target] = JKeys.WoodBoiler.TargetName;
-                    jo[JKeys.Generic.Name] = (string)data[JKeys.Generic.Name];
-                    jo[JKeys.Generic.Action] = JKeys.WoodBoiler.ActionIkurimas;
+                    _logger.Debug("WoodBoiler Ikurimas...");
+                    JObject jo = new JObject
+                    {
+                        [JKeys.Generic.Target] = JKeys.WoodBoiler.TargetName,
+                        [JKeys.Generic.Name] = (string)data[JKeys.Generic.Name],
+                        [JKeys.Generic.Action] = JKeys.WoodBoiler.ActionIkurimas
+                    };
                     SendToArduino(jo);
                     return;
                 }
@@ -98,9 +169,10 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     return;
                 }
 
-                NSULog.Info("UserCMD", $"Unknown command: '{cmd}'");
+                _logger.Warning($"Unknown command: '{cmd}'");
             }
         }
+        */
 
         private void ProcessWoodBoilerCmd(string cmd)
         {
@@ -109,16 +181,18 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             {
                 try
                 {
-                    JObject jo = new JObject();
-                    jo[JKeys.Generic.Target] = JKeys.WoodBoiler.TargetName;
-                    jo[JKeys.Generic.Name] = "default";
-                    jo[JKeys.Generic.Action] = JKeys.Generic.Setup;
-                    jo[JKeys.WoodBoiler.WorkingTemp] = float.Parse(parts[2]);
-                    SendToArduino(jo);
+                    JObject jo = new JObject
+                    {
+                        [JKeys.Generic.Target] = JKeys.WoodBoiler.TargetName,
+                        [JKeys.Generic.Name] = "default",
+                        [JKeys.Generic.Action] = JKeys.Generic.Setup,
+                        [JKeys.WoodBoiler.WorkingTemp] = float.Parse(parts[2])
+                    };
+                    ///SendToArduino(jo);
                 }
                 catch (Exception ex)
                 {
-                    NSULog.Error("UserCMD", ex.Message);
+                    _logger.Error(ex, "ProcessWoodBoilerCmd() exception:");
                 }
             }
         }
@@ -126,19 +200,21 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         private void ProcessSwitchCmds(string cmd)
         {
             string[] parts = cmd.Split(' ');
-            if (parts[2].Equals("click", System.StringComparison.InvariantCultureIgnoreCase))
+            if (parts[2].Equals("click", StringComparison.InvariantCultureIgnoreCase))
             {
                 try
                 {
-                    JObject jo = new JObject();
-                    jo[JKeys.Generic.Target] = JKeys.Switch.TargetName;
-                    jo[JKeys.Generic.Name] = parts[1];
-                    jo[JKeys.Generic.Action] = "click";
-                    SendToArduino(jo);
+                    JObject jo = new JObject
+                    {
+                        [JKeys.Generic.Target] = JKeys.Switch.TargetName,
+                        [JKeys.Generic.Name] = parts[1],
+                        [JKeys.Generic.Action] = "click"
+                    };
+                    ///SendToArduino(jo);
                 }
                 catch (Exception ex)
                 {
-                    NSULog.Error("UserCMD", ex.Message);
+                    _logger.Error(ex, "ProcessSwitchCmds() exception:");
                 }
             }
         }
@@ -160,18 +236,18 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 }
                 else
                 {
-                    NSULog.Error(LogTag, $"Invalid command: {cmd}");
+                    _logger.Error($"Invalid command: {cmd}");
                 }
                 byte b;
                 if (byte.TryParse(parts[2], out b))
                 {
                     jo[JKeys.Generic.Value] = b;
-                    SendToArduino(jo);
+                    ///SendToArduino(jo);
                 }
             }
             else
             {
-                NSULog.Error(LogTag, $"Invalid command: {cmd}");
+                _logger.Error($"Invalid command: {cmd}");
             }
         }
 
@@ -191,25 +267,55 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         if (float.TryParse(parts[3], out float val))
                         {
                             jo[JKeys.Generic.Value] = val;
-                            SendToArduino(jo);
+                            ///SendToArduino(jo);
                         }
                     }
                     else
                     {
-                        NSULog.Error(LogTag, $"Invalid command: {cmd}");
+                        _logger.Error($"Invalid command: {cmd}");
                     }
                 }
             }
         }
 
-        public override void ProccessNetworkData(NetClientData clientData, JObject data)
+        private class UserConsole : IConsole
         {
-            
+            public IStandardStreamWriter Out => _writer;
+            public bool IsOutputRedirected => true;
+            public IStandardStreamWriter Error => _errWriter;
+            public bool IsErrorRedirected => true;
+            public bool IsInputRedirected => true;
+
+            private readonly ConsoleWriter _writer;
+            private readonly ConsoleWriter _errWriter;
+
+            public UserConsole(ILogger logger)
+            {
+                _writer = new ConsoleWriter(logger, false);
+                _errWriter = new ConsoleWriter(logger, true);
+            }
+
+            private class ConsoleWriter : IStandardStreamWriter
+            {
+                private readonly ILogger _logger;
+                private readonly bool _errWriter;
+
+                public ConsoleWriter(ILogger logger, bool errWriter)
+                {
+                    _logger = logger;
+                    _errWriter = errWriter;
+                }
+
+                public void Write(string? value)
+                {
+                    if (_errWriter)
+                        _logger.Error(value);
+                    else
+                        _logger.Information(value);
+                }
+            }
         }
 
-        public override string[] RegisterTargets()
-        {
-            return new string[] { JKeys.UserCmd.TargetName };
-        }
+
     }
 }

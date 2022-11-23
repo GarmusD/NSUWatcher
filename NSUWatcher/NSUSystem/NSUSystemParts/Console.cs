@@ -1,29 +1,38 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using NSU.Shared;
-using NSU.Shared.NSUTypes;
-using NSUWatcher.NSUWatcherNet;
+using NSU.Shared.DTO.ExtCommandContent;
+using NSU.Shared.NSUSystemPart;
+using NSU.Shared.Serializer;
+using NSUWatcher.Interfaces;
+using NSUWatcher.Interfaces.MCUCommands;
+using NSUWatcher.Serilog;
+using Serilog;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-    public class Console : NSUSysPartsBase
+    public class Console : NSUSysPartBase
     {
-        private const string LogTag = "Console";
-        private readonly List<NetClientData> _clients = new List<NetClientData>();
+        public override string[] SupportedTargets => new string[] { JKeys.Console.TargetName };
 
-        public Console(NSUSys sys, PartsTypes partType) : base(sys, partType)
-        {
-            NSULog.Instance.CatchOutput += NSULog_CatchOutput;
-            sys.NetServer.ClientDisconnected += NetServer_ClientDisconnected;
-        }        
+        private readonly ConsolePart _console = new ConsolePart();
 
-        public override string[] RegisterTargets()
+        public Console(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.Console)
         {
-            return new string[] {JKeys.Console.TargetName };
+            NsuConsoleMessage.OutputReceived += (s, e) =>
+            {
+                 _console.Output = e.Output;
+            };
+
+
+            _console.PropertyChanged += (s, e) => 
+            {
+                _nsuSys.OnStatusChanged(_console, e.PropertyName);
+            };
+        }
+
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        {
+            _logger.Warning($"Console Part does not support messages from MCU [{command.GetType().Name}].");
         }
 
         public override void Clear()
@@ -31,72 +40,30 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             
         }
 
-        private void NSULog_CatchOutput(object sender, ConsoleEventArgs e)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            if (_clients.Count > 0 && !string.IsNullOrEmpty(e.Message))
-            {
-                JObject jo = new JObject
-                {
-                    [JKeys.Generic.Target] = JKeys.Console.TargetName,
-                    [JKeys.Generic.Action] = JKeys.Console.ConsoleOut,
-                    [JKeys.Generic.Value] = e.Message
-                };
-                foreach (var item in _clients)
-                {
-                    SendToClient(NetClientRequirements.CreateStandartClientOnly(item), jo);
-                }
-            }
-        }
-
-        private void NetServer_ClientDisconnected(NetClientData clientData)
-        {
-            _clients.Remove(clientData);
-        }        
-
-        public override void ProccessNetworkData(NetClientData clientData, JObject data)
-        {
-            switch((string)data[JKeys.Generic.Action])
+            switch(command.Action)
             {
                 case JKeys.Console.Start:
-                    ProcessActionStart(clientData);
-                    break;
+                    _console.ContextList.Add(context);
+                    return null;
 
                 case JKeys.Console.Stop:
-                    ProcessActionStop(clientData);
-                    break;
+                    _console.ContextList.Remove(context);
+                    return null;
 
                 case JKeys.Console.ManualCommand:
-                    ProcessActionManualCommand(data);
-                    break;
-            }
-        }
-        
-        private void ProcessActionStart(NetClientData clientData)
-        {
-            NSULog.Debug(LogTag, $"Client {clientData.ClientID} requested console output.");
-            if (!_clients.Exists(x => x.ClientID.Equals(clientData.ClientID)))
-            {
-                _clients.Add(clientData);
-                NSULog.Debug(LogTag, $"Client {clientData.ClientID} added to list.");
-            }
-        }
-        
-        private void ProcessActionStop(NetClientData clientData)
-        {
-            _clients.Remove(clientData);
-            NSULog.Debug(LogTag, $"Client {clientData.ClientID} stopped console output.");
-        }
-        
-        private void ProcessActionManualCommand(JObject data)
-        {
-            var cmd = JSonValueOrDefault(data, JKeys.Generic.Value, string.Empty);
-            if (!string.IsNullOrEmpty(cmd))
-                nsusys.ManualCommand(cmd);
-        }
+                    UserCmdExecCommandContent? content = _serializer.Deserialize<UserCmdExecCommandContent>(command.Content);
+                    if (content == null)
+                        throw new InvalidCastException($"Invalid content: '{command.Content}'");
 
-        public override void ProccessArduinoData(JObject data)
-        {
-
+                    _nsuSys.CmdCenter.ExecExternalCommand(
+                        _nsuSys.CmdCenter.ExternalCommands.UserCmdCommands.ExecUserCommand(content.Value.Command), 
+                        nsuUser, context);
+                    return null;
+            }
+            LogNotImplementedCommand(command);
+            return null;
         }
     }
 }

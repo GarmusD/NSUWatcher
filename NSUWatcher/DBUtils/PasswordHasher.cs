@@ -9,9 +9,9 @@ namespace NSUWatcher.DBUtils
 		// 24 = 192 bits
 		private const int SaltByteSize = 24;
 		private const int HashByteSize = 24;
-		private const int HasingIterationsCount = 10101;
+		private const int HashingIterationsCount = 10101;
 
-		public static string ComputeHash(string password, int iterations = HasingIterationsCount, int hashByteSize = HashByteSize)
+		public static string ComputeHash(string password, int iterations = HashingIterationsCount, int hashByteSize = HashByteSize)
 		{
 			var hashGenerator = new Rfc2898DeriveBytes(password, salt);
 			//hashGenerator.IterationCount = iterations;
