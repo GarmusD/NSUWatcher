@@ -5,7 +5,7 @@ VisualStudioVersion = 17.3.32922.545
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NSUWatcher", "NSUWatcher\NSUWatcher.csproj", "{D72512B0-9C41-465C-8987-C21B4BC29AD8}"
 EndProject
-Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Shared", "..\Shared\Shared.shproj", "{42D4BE53-566F-4837-9B8F-E244784679E5}"
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "NSUShared", "..\NSUShared\NSUShared.shproj", "{42D4BE53-566F-4837-9B8F-E244784679E5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nsuCom", "nsuCom\nsuCom.csproj", "{502E0DA6-A8CB-44A2-95B8-9C47685D3A83}"
 EndProject
@@ -39,10 +39,9 @@ Global
 		SolutionGuid = {17A6C305-D9CE-4DF4-AB40-A6DEA94AE17A}
 	EndGlobalSection
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		..\Shared\Shared.projitems*{42d4be53-566f-4837-9b8f-e244784679e5}*SharedItemsImports = 13
 		TransportDataContracts\TransportDataContracts.projitems*{502e0da6-a8cb-44a2-95b8-9c47685d3a83}*SharedItemsImports = 4
+		..\NSUShared\NSUShared.projitems*{d72512b0-9c41-465c-8987-c21b4bc29ad8}*SharedItemsImports = 5
 		TransportDataContracts\TransportDataContracts.projitems*{d72512b0-9c41-465c-8987-c21b4bc29ad8}*SharedItemsImports = 5
-		..\Shared\Shared.projitems*{d72512b0-9c41-465c-8987-c21b4bc29ad8}*SharedItemsImports = 5
 		TransportDataContracts\TransportDataContracts.projitems*{dfc93c83-6c69-4c7a-96f4-390155cde9bd}*SharedItemsImports = 13
 	EndGlobalSection
 EndGlobal
