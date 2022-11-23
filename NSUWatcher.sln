@@ -1,65 +1,48 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26730.12
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32922.545
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NSUWatcher", "NSUWatcher\NSUWatcher.csproj", "{C555B7DD-76ED-44B3-A283-CC86307FC7C6}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CBE8A1A5-0CFE-4630-BDAA-CC270B1738CA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NSUWatcher", "NSUWatcher\NSUWatcher.csproj", "{D72512B0-9C41-465C-8987-C21B4BC29AD8}"
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Shared", "..\Shared\Shared.shproj", "{42D4BE53-566F-4837-9B8F-E244784679E5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nsuwconsole", "nsuwconsole\nsuwconsole.csproj", "{2FA49118-B219-42A0-917A-6ECC8294F746}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "nsuCom", "nsuCom\nsuCom.csproj", "{502E0DA6-A8CB-44A2-95B8-9C47685D3A83}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{3B913C5E-0C3C-4EF4-ACD1-B4289E9DAA67}"
+EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "TransportDataContracts", "TransportDataContracts\TransportDataContracts.shproj", "{DFC93C83-6C69-4C7A-96F4-390155CDE9BD}"
 EndProject
 Global
-	GlobalSection(SharedMSBuildProjectFiles) = preSolution
-		..\Shared\Shared.projitems*{42d4be53-566f-4837-9b8f-e244784679e5}*SharedItemsImports = 13
-		..\Shared\Shared.projitems*{c555b7dd-76ed-44b3-a283-cc86307fc7c6}*SharedItemsImports = 4
-	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
-		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
-		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C555B7DD-76ED-44B3-A283-CC86307FC7C6}.Debug|Any CPU.ActiveCfg = Debug|x86
-		{C555B7DD-76ED-44B3-A283-CC86307FC7C6}.Debug|x86.ActiveCfg = Debug|x86
-		{C555B7DD-76ED-44B3-A283-CC86307FC7C6}.Debug|x86.Build.0 = Debug|x86
-		{C555B7DD-76ED-44B3-A283-CC86307FC7C6}.Release|Any CPU.ActiveCfg = Release|x86
-		{C555B7DD-76ED-44B3-A283-CC86307FC7C6}.Release|x86.ActiveCfg = Release|x86
-		{C555B7DD-76ED-44B3-A283-CC86307FC7C6}.Release|x86.Build.0 = Release|x86
-		{2FA49118-B219-42A0-917A-6ECC8294F746}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2FA49118-B219-42A0-917A-6ECC8294F746}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2FA49118-B219-42A0-917A-6ECC8294F746}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{2FA49118-B219-42A0-917A-6ECC8294F746}.Debug|x86.Build.0 = Debug|Any CPU
-		{2FA49118-B219-42A0-917A-6ECC8294F746}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2FA49118-B219-42A0-917A-6ECC8294F746}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2FA49118-B219-42A0-917A-6ECC8294F746}.Release|x86.ActiveCfg = Release|Any CPU
-		{2FA49118-B219-42A0-917A-6ECC8294F746}.Release|x86.Build.0 = Release|Any CPU
+		{D72512B0-9C41-465C-8987-C21B4BC29AD8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D72512B0-9C41-465C-8987-C21B4BC29AD8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D72512B0-9C41-465C-8987-C21B4BC29AD8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D72512B0-9C41-465C-8987-C21B4BC29AD8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{502E0DA6-A8CB-44A2-95B8-9C47685D3A83}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{502E0DA6-A8CB-44A2-95B8-9C47685D3A83}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{502E0DA6-A8CB-44A2-95B8-9C47685D3A83}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{502E0DA6-A8CB-44A2-95B8-9C47685D3A83}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B913C5E-0C3C-4EF4-ACD1-B4289E9DAA67}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B913C5E-0C3C-4EF4-ACD1-B4289E9DAA67}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B913C5E-0C3C-4EF4-ACD1-B4289E9DAA67}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B913C5E-0C3C-4EF4-ACD1-B4289E9DAA67}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {11055F99-4646-4FB3-8B22-1AD86110D54D}
+		SolutionGuid = {17A6C305-D9CE-4DF4-AB40-A6DEA94AE17A}
 	EndGlobalSection
-	GlobalSection(MonoDevelopProperties) = preSolution
-		StartupItem = NSUWatcher\NSUWatcher.csproj
-		Policies = $0
-		$0.DotNetNamingPolicy = $1
-		$1.DirectoryNamespaceAssociation = None
-		$1.ResourceNamePolicy = FileFormatDefault
-		$0.StandardHeader = $2
-		$2.Text = 
-		$2.IncludeInNewFiles = True
-		$0.NameConventionPolicy = $3
-		$3.Rules = $4
-		$4.NamingRule = $24
-		$24.AffectedEntity = None
-		$24.VisibilityMask = VisibilityMask
-		$24.NamingStyle = None
-		$24.IncludeInstanceMembers = True
-		$24.IncludeStaticEntities = True
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		..\Shared\Shared.projitems*{42d4be53-566f-4837-9b8f-e244784679e5}*SharedItemsImports = 13
+		TransportDataContracts\TransportDataContracts.projitems*{502e0da6-a8cb-44a2-95b8-9c47685d3a83}*SharedItemsImports = 4
+		TransportDataContracts\TransportDataContracts.projitems*{d72512b0-9c41-465c-8987-c21b4bc29ad8}*SharedItemsImports = 5
+		..\Shared\Shared.projitems*{d72512b0-9c41-465c-8987-c21b4bc29ad8}*SharedItemsImports = 5
+		TransportDataContracts\TransportDataContracts.projitems*{dfc93c83-6c69-4c7a-96f4-390155cde9bd}*SharedItemsImports = 13
 	EndGlobalSection
 EndGlobal
