@@ -1,9 +1,15 @@
-﻿namespace NSUWatcher.Interfaces.MCUCommands.From
+﻿using Newtonsoft.Json;
+using NSU.Shared;
+
+namespace NSUWatcher.Interfaces.MCUCommands.From
 {
     public interface ITempChanged : IMessageFromMcu
     {
-        string Address { get; set; }
-        float Temperature { get; set; }
-        int ReadErrorCount { get; set; }
+        [JsonProperty(JKeys.TempSensor.SensorID)]
+        public string Address { get; set; }
+        [JsonProperty(JKeys.TempSensor.Temperature)]
+        public float Temperatur { get; set; }
+        [JsonProperty(JKeys.TempSensor.ReadErrors)]
+        public int ReadErrorCount { get; set; }
     }
 }

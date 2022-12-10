@@ -1,19 +1,21 @@
-﻿namespace NSUWatcher.Interfaces.MCUCommands.From
+﻿using Newtonsoft.Json;
+using NSU.Shared;
+
+namespace NSUWatcher.Interfaces.MCUCommands.From
 {
     public interface ICollectorSnapshot : IMessageFromMcu
     {
-        byte ConfigPos { get; set; }
-        bool Enabled { get; set; }
-        string Name { get; set; }
-        string CircPumpName { get; set; }
-        int ActuatorsCounts { get; set; }
-        ICollectorActuator[] Actuators { get; set; }
-    }
-
-    public interface ICollectorActuator
-    {
-        int ActuatorType { get; set; }
-        int Channel { get; set; }
-        bool? IsOpen { get; set; }
+        [JsonProperty(JKeys.Generic.ConfigPos)]
+        public int ConfigPos { get; set; }
+        [JsonProperty(JKeys.Generic.Enabled)]
+        public bool Enabled { get; set; }
+        [JsonProperty(JKeys.Generic.Name)]
+        public string Name { get; set; }
+        [JsonProperty(JKeys.Collector.CircPumpName)]
+        public string CircPumpName { get; set; }
+        [JsonProperty(JKeys.Collector.ActuatorsCount)]
+        public int ActuatorsCounts { get; set; }
+        [JsonProperty(JKeys.Collector.Valves)]
+        public ICollectorActuator[] Actuators { get; set; }
     }
 }

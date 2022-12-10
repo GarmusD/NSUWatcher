@@ -6,14 +6,14 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public static class SwitchChanges
     {
-        public static NetMessage Message(ISwitchDataContract dataContract, string property)
+        public static NetMessage? Message(ISwitchDataContract dataContract, string property)
         {
-            switch (property)
+            return property switch
             {
-                case nameof(Switch.Status): return new NetMessage(
+                nameof(Switch.Status) => new NetMessage(
                     SwitchStatusChanged.Create(dataContract.Name, dataContract.Status.ToString(), dataContract.IsForced)
-                    );
-                default: return null;
+                    ),
+                _ => null
             };
         }
     }

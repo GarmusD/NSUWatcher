@@ -4,24 +4,23 @@ using System.Linq;
 using NSU.Shared.NSUXMLConfig;
 using NSUWatcher.NSUSystem.NSUSystemParts;
 using Newtonsoft.Json.Linq;
+using Serilog;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using NSUWatcher.NSUSystem.Config;
 using Microsoft.Extensions.Hosting;
+using System.Threading;
 using NSUWatcher.Interfaces;
 using NSU.Shared.DataContracts;
 using System.ComponentModel;
 using NSU.Shared;
 using NSU.Shared.Serializer;
-using System.Threading.Tasks;
-using System.Threading;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NSUWatcher.NSUSystem
 {
     public class NsuSystem : INsuSystem, IHostedService
     {   
-        public event EventHandler<PropertyChangedEventArgs> StatusChanged;
+        public event EventHandler<PropertyChangedEventArgs>? StatusChanged;
 
         public NsuSysConfig Config => _config;
         public bool IsReady => _isReady;
@@ -42,10 +41,10 @@ namespace NSUWatcher.NSUSystem
 
         
 
-        public NsuSystem(ICmdCenter cmdCenter, IHostApplicationLifetime lifetime, IConfiguration config, ILoggerFactory loggerFactory)
+        public NsuSystem(ICmdCenter cmdCenter, IHostApplicationLifetime lifetime, IConfiguration config, ILogger logger)
         {
-            _logger = loggerFactory?.CreateLoggerShort<NsuSystem>() ?? NullLoggerFactory.Instance.CreateLoggerShort<NsuSystem>();
-            _logger.LogDebug("Creating NSU System.");
+            _logger = logger.ForContext<NsuSystem>() ?? throw new ArgumentNullException(nameof(logger), "Instance of logger cannot be null.");
+            _logger.Information("Creating NSU System.");
             _nsuSerializer = new NsuSerializer();
 
             _lifetime = lifetime;
@@ -53,8 +52,8 @@ namespace NSUWatcher.NSUSystem
             _config = config.GetSection("NsuSys").Get<NsuSysConfig>();
             ValidateConfig();
 
-            _logger.LogInformation("Creating XMLConfig.");
-            XMLConfig = new NSUXMLConfig(loggerFactory);
+            _logger.Information("NsuSys: Creating XMLConfig.");
+            XMLConfig = new NSUXMLConfig(logger);
 
             _iCmdCenter = cmdCenter;
             _iCmdCenter.SystemMessageReceived += CmdCenter_SystemMessageReceived;
@@ -63,12 +62,31 @@ namespace NSUWatcher.NSUSystem
             _iCmdCenter.ManualCommandReceived += CmdCenter_ManualCommandReceived;
 
             //SYSCMD
-            _sysPart = new Syscmd(this, loggerFactory, _nsuSerializer);
+            _logger.Information("NsuSys: Creating SysPart.");
+            _sysPart = new Syscmd(this, logger, _nsuSerializer);
 
+            _logger.Information("NsuSys: Creating NsuParts.");
             _nsuParts = new List<NSUSysPartBase>();
-            CreateParts(loggerFactory);
+            CreateParts(logger);
             
-            _logger.LogTrace("Creating NsuSystem. Done.");
+            _logger.Information("NsuSys: Done.");
+        }
+        
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            _logger.Information("NsuSystem: StartAsync() called.");
+            return Task.CompletedTask;
+        }
+
+        // IHostedService
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.Debug("NsuSystem: StopAsync() called.");
+            _iCmdCenter.SystemMessageReceived -= CmdCenter_SystemMessageReceived;
+            _iCmdCenter.McuMessageReceived -= CmdCenter_McuMessageReceived;
+            _iCmdCenter.ExternalCommandReceived -= CmdCenter_ExternalCommandReceived;
+            _iCmdCenter.ManualCommandReceived -= CmdCenter_ManualCommandReceived;
+            return Task.CompletedTask;
         }
 
         private void ValidateConfig()
@@ -79,7 +97,7 @@ namespace NSUWatcher.NSUSystem
             throw new ArgumentNullException(nameof(_config), "Configuration is not valid. Required sections 'serial', 'bossac' and 'rebootMcu' must contain valid data.");
         }
         
-        private void CmdCenter_SystemMessageReceived(object sender, SystemMessageEventArgs e)
+        private void CmdCenter_SystemMessageReceived(object? sender, SystemMessageEventArgs e)
         {
             switch (e.Message)
             {
@@ -91,44 +109,43 @@ namespace NSUWatcher.NSUSystem
                     break;
                 case SysMessage.McuCrashed:
                     break;
+                case SysMessage.TransportAppCrashed:
+                    break;
                 default:
                     break;
             }
         }
 
-        private void CmdCenter_McuMessageReceived(object sender, McuMessageReceivedEventArgs e)
+        private void CmdCenter_McuMessageReceived(object? sender, McuMessageReceivedEventArgs e)
         {
             try
             {
-                _logger.LogTrace($"CmdCenter_McuMessageReceived(): {e.Message.GetType().Name}");
-                foreach (var nsuPart in _nsuParts)
+                var nsuPart = FindPart(e.Message.Target);
+                if (nsuPart == null)
                 {
-                    if (nsuPart.ProcessCommandFromMcu(e.Message))
-                        return;
+                    _logger.Error($"Target '{e.Message.Target}' not found.");
+                    return;
                 }
-                _logger.LogError($"A processor for IMessageFromMcu '{e.Message.GetType().Name}' not found.");
+                nsuPart.ProcessCommandFromMcu(e.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"CmdCenter_McuMessageReceived(): Exception:");
+                _logger.Error(ex, $"CmdCenter_McuMessageReceived(): Exception:");
             }
         }
 
-        private void CmdCenter_ExternalCommandReceived(object sender, ExternalCommandEventArgs e)
+        private void CmdCenter_ExternalCommandReceived(object? sender, ExternalCommandEventArgs e)
         {
-            _logger.LogCritical("CmdCenter_ExternalCommandReceived(): NotImplementedException");
             throw new NotImplementedException();
         }
         
-        private void CmdCenter_ManualCommandReceived(object sender, ManualCommandEventArgs e)
+        private void CmdCenter_ManualCommandReceived(object? sender, ManualCommandEventArgs e)
         {
-            _logger.LogCritical("CmdCenter_ManualCommandReceived(): NotImplementedException");
             throw new NotImplementedException();
         }
 
         internal void OnStatusChanged(INSUSysPartDataContract source, string property)
         {
-            _logger.LogDebug($"Emiting StatusChanged event for: {source.GetType().Name} - {property}");
             var evt = StatusChanged;
             evt?.Invoke(source, new PropertyChangedEventArgs(property));
         }
@@ -138,24 +155,23 @@ namespace NSUWatcher.NSUSystem
             _isReady = isReady;
         }
 
-        private void CreateParts(ILoggerFactory loggerFactory)
+        private void CreateParts(ILogger logger)
         {
-            NSUParts.Clear();
             NSUParts.Add(_sysPart);
-            NSUParts.Add(new TempSensors(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new Switches(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new RelayModules(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new TempTriggers(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new CircPumps(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new Collectors(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new ComfortZones(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new KTypes(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new WaterBoilers(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new WoodBoilers(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new SystemFans(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new Usercmd(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new BinUploader(this, loggerFactory, _nsuSerializer));
-            NSUParts.Add(new NSUSystemParts.Console(this, loggerFactory, _nsuSerializer));
+            NSUParts.Add(new TempSensors(this, logger, _nsuSerializer));
+            NSUParts.Add(new Switches(this, logger, _nsuSerializer));
+            NSUParts.Add(new RelayModules(this, logger, _nsuSerializer));
+            NSUParts.Add(new TempTriggers(this, logger, _nsuSerializer));
+            NSUParts.Add(new CircPumps(this, logger, _nsuSerializer));
+            NSUParts.Add(new Collectors(this, logger, _nsuSerializer));
+            NSUParts.Add(new ComfortZones(this, logger, _nsuSerializer));
+            NSUParts.Add(new KTypes(this, logger, _nsuSerializer));
+            NSUParts.Add(new WaterBoilers(this, logger, _nsuSerializer));
+            NSUParts.Add(new WoodBoilers(this, logger, _nsuSerializer));
+            NSUParts.Add(new SystemFans(this, logger, _nsuSerializer));
+            NSUParts.Add(new Usercmd(this, logger, _nsuSerializer));
+            NSUParts.Add(new BinUploader(this, logger, _nsuSerializer));
+            NSUParts.Add(new NSUSystemParts.Console(this, logger, _nsuSerializer));
         }
 
         string ReadCmdID(JObject jo)
@@ -163,27 +179,16 @@ namespace NSUWatcher.NSUSystem
             var lastCmdID = string.Empty;
             if (jo.Property(JKeys.Generic.CommandID) != null)
             {
-                lastCmdID = (string)jo[JKeys.Generic.CommandID];
+                lastCmdID = (string)jo[JKeys.Generic.CommandID]!;
             }
             return lastCmdID;
         }
 
-        private NSUSysPartBase FindPart(string target)
+        private NSUSysPartBase? FindPart(string target)
         {
             return _nsuParts.FirstOrDefault(x => x.SupportedTargets.Contains(target));
         }
-
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogTrace("StartAsync(). Do nothing.");
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogTrace("StopAsync(). Do nothing.");
-            return Task.CompletedTask;
-        }
+        
     }
 }
 

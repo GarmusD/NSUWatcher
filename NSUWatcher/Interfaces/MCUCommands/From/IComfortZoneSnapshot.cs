@@ -1,23 +1,43 @@
-﻿namespace NSUWatcher.Interfaces.MCUCommands.From
+﻿using Newtonsoft.Json;
+using NSU.Shared;
+
+namespace NSUWatcher.Interfaces.MCUCommands.From
 {
     public interface IComfortZoneSnapshot : IMessageFromMcu
     {
-        byte ConfigPos { get; set; }
-        bool Enabled { get; set; }
-        string Name { get; set; }
-        string Title { get; set; }
-        string CollectorName { get; set; }
-        int ActuatorPosition { get; set; }
-        double Histeresis { get; set; }        
-        string RoomSensorName { get; set; }
-        double RoomTempHi { get; set; }
-        double RoomTempLow { get; set; }
-        string FloorSensorName { get; set; }
-        double FloorTempHi { get; set; }
-        double FloorTempLow { get; set; }
-        bool LowTempMode { get; set; }
-        double? CurrentRoomTemp { get; set; }
-        double? CurrentFloorTemp { get; set; }
-        bool? ActuatorOpened { get; set; }
+        [JsonProperty(JKeys.Generic.ConfigPos)]
+        public int ConfigPos { get; set; }
+        [JsonProperty(JKeys.Generic.Enabled)]
+        public bool Enabled { get; set; }
+        [JsonProperty(JKeys.Generic.Name)]
+        public string Name { get; set; }
+        [JsonProperty(JKeys.ComfortZone.Title)]
+        public string Title { get; set; }
+        [JsonProperty(JKeys.ComfortZone.CollectorName)]
+        public string CollectorName { get; set; }
+        [JsonProperty(JKeys.ComfortZone.Actuator)]
+        public int ActuatorPosition { get; set; }
+        [JsonProperty(JKeys.ComfortZone.Histeresis)]
+        public double Histeresis { get; set; }
+        [JsonProperty(JKeys.ComfortZone.RoomSensorName)]
+        public string RoomSensorName { get; set; }
+        [JsonProperty(JKeys.ComfortZone.RoomTempHi)]
+        public double RoomTempHi { get; set; }
+        [JsonProperty(JKeys.ComfortZone.RoomTempLow)]
+        public double RoomTempLow { get; set; }
+        [JsonProperty(JKeys.ComfortZone.FloorSensorName)]
+        public string FloorSensorName { get; set; }
+        [JsonProperty(JKeys.ComfortZone.FloorTempHi)]
+        public double FloorTempHi { get; set; }
+        [JsonProperty(JKeys.ComfortZone.FloorTempLow)]
+        public double FloorTempLow { get; set; }
+        [JsonProperty(JKeys.ComfortZone.LowTempMode)]
+        public bool LowTempMode { get; set; }
+        [JsonProperty(JKeys.ComfortZone.CurrentRoomTemp)]
+        public double? CurrentRoomTemp { get; set; }
+        [JsonProperty(JKeys.ComfortZone.CurrentFloorTemp)]
+        public double? CurrentFloorTemp { get; set; }
+        [JsonProperty(JKeys.ComfortZone.ActuatorOpened)]
+        public bool? ActuatorOpened { get; set; }
     }
 }

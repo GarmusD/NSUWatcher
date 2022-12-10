@@ -7,8 +7,8 @@ namespace NSUWatcher.Interfaces.MCUCommands
     public interface ICommandToMcuData
     {
         [JsonProperty(JKeys.Generic.Target)]
-        string Target { get; }
+        public string Target { get; }
         [JsonProperty(JKeys.Generic.Action)]
-        string Action { get; }
+        public string Action { get; }
     }
 }

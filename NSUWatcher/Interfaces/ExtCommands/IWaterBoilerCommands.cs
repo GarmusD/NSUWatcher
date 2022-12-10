@@ -4,7 +4,7 @@ namespace NSUWatcher.Interfaces.ExtCommands
 {
     public interface IWaterBoilerCommands
     {
-        IExternalCommand Setup(byte configPos, bool enabled, string name, string tempSensorName, string tempTriggerName,
+        public IExternalCommand Setup(byte configPos, bool enabled, string name, string tempSensorName, string tempTriggerName,
             string circPumpName, bool elHeatingEnabled, byte elPowerChannel, params ElHeatingTime[] elHeatingTime);
     }
 }

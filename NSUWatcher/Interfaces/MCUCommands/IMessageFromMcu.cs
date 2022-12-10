@@ -1,10 +1,13 @@
-﻿namespace NSUWatcher.Interfaces.MCUCommands
+﻿using Newtonsoft.Json;
+using NSU.Shared;
+
+namespace NSUWatcher.Interfaces.MCUCommands
 {
-#nullable enable
     public interface IMessageFromMcu
     {
-        //string Source { get; set; }
-        //string? CommandID { get; set; }
+        [JsonProperty(JKeys.Generic.Target)]
+        string Target { get; set; }
+        [JsonProperty(JKeys.Generic.CommandID)]
+        string? CommandID { get; set; }
     }
-#nullable disable
 }

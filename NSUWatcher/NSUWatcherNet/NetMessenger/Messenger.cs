@@ -1,11 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NSU.Shared;
 using NSU.Shared.DataContracts;
 using NSU.Shared.NSUNet;
 using NSUWatcher.Interfaces;
+using Serilog;
 using System.Collections.Generic;
 
 namespace NSUWatcher.NSUWatcherNet.NetMessenger
@@ -23,11 +22,11 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 
         private readonly List<IMsgProcessor> _msgProcessors;
 
-        public Messenger(NetServer netServer, ICmdCenter cmdCenter, INsuSystem nsuSystem, ILoggerFactory loggerFactory)
+        public Messenger(NetServer netServer, ICmdCenter cmdCenter, INsuSystem nsuSystem, ILogger logger)
         {
             _netServer = netServer;
             _nsuSystem = nsuSystem;
-            _logger = loggerFactory?.CreateLoggerShort<Messenger>() ?? NullLoggerFactory.Instance.CreateLoggerShort<Messenger>();
+            _logger = logger.ForContext<Messenger>();
             _msgProcessors = new List<IMsgProcessor>()
             {
                 new SysMsgProcessor(),
@@ -37,7 +36,7 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
             _nsuSystem.StatusChanged += NsuSystem_StatusChanged;
         }
 
-        public INetMessage ProcessNetMessage(INetMessage message)
+        public INetMessage? ProcessNetMessage(INetMessage message)
         {
             if (message.DataType == DataType.String)
             {
@@ -53,7 +52,7 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
                 }
                 catch (JsonReaderException) { }
             }
-            _logger.LogWarning($"ProcessNetMessage: NetDataType '{message.DataType}' is not implemented.");
+            _logger.Warning($"ProcessNetMessage: NetDataType '{message.DataType}' is not implemented.");
             return null;
         }
 
@@ -62,22 +61,22 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
             return jo.ContainsKey(JKeys.Generic.Target) && jo.ContainsKey(JKeys.Generic.Action);
         }
 
-        private INetMessage ProcessJsonData(JObject jsonData)
+        private INetMessage? ProcessJsonData(JObject jsonData)
         {
             foreach (var processor in _msgProcessors)
             {
-                if (processor.ProcessMessage(jsonData, out INetMessage netMessage))
+                if (processor.ProcessMessage(jsonData, out INetMessage? netMessage))
                     return netMessage;
             }
-            _logger.LogWarning($"Unsupported message received: {jsonData}");
+            _logger.Warning($"Unsupported message received: {jsonData}");
             return null;
         }
 
 
 
-        private void NsuSystem_StatusChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        private void NsuSystem_StatusChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            NetMessage netMessage = null;
+            NetMessage? netMessage = null;
             NetClientRequirements requirements = NetClientRequirements.CreateStandartAcceptInfo();
             switch (sender)
             {
@@ -138,7 +137,7 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
                     break;
 
                 default:
-                    _logger.LogWarning($"NsuSystem StatusChanged handler for data contract [{sender?.GetType().FullName}] not implemented.");
+                    _logger.Warning($"NsuSystem StatusChanged handler for data contract [{sender?.GetType().FullName}] not implemented.");
                     break;
             }
             if (netMessage != null)

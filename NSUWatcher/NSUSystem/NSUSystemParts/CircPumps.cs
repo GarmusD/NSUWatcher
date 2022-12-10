@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
 using System.Linq;
+using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
-using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -18,28 +18,29 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override string[] SupportedTargets => new string[] { JKeys.CircPump.TargetName, "CIRCPUMP:" };
 
-        public CircPumps(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.CircPumps) { }
+        public CircPumps(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.CircPumps) { }
 
-        public CircPump FindCircPump(string name)
+        public CircPump? FindCircPump(string name)
         {
             return _circPumps.FirstOrDefault(x => x.Name == name);
         }
 
         // Direction - from MCU
-        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case ICircPumpSnapshot circPumpSnapshot:
                     ProcessCircPumpSnapshot(circPumpSnapshot);
-                    return true;
+                    return;
 
                 case ICircPumpInfo circPumpInfo:
                     ProcessCircPumpInfo(circPumpInfo);
-                    return true;
+                    return;
 
                 default:
-                    return false;
+                    LogNotImplementedCommand(command);
+                    break;
             }
         }
 
@@ -64,18 +65,18 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             {
                 cp.CurrentSpeed = circPumpInfo.CurrentSpeed;
                 cp.OpenedValvesCount = circPumpInfo.ValvesOpened;
-                cp.Status = (Status)Enum.Parse(typeof(Status), circPumpInfo.Status, true);
+                cp.Status = Enum.Parse<Status>(circPumpInfo.Status, true);
             }
         }
 
-        private void CP_StatusChanged(object sender, StatusChangedEventArgs e)
+        private void CP_StatusChanged(object? sender, StatusChangedEventArgs e)
         {
             if (sender is CircPump cp)
                 OnPropertyChanged(cp, nameof(cp.Status));
         }
 
         // Direction - to MCU
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
             if(command.Action == JKeys.Action.Click)
             {
@@ -88,19 +89,19 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 cp.OnClicked();
                 return null;
             }
-            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 
-        private void CP_Clicked(object sender, EventArgs e)
+        private void CP_Clicked(object? sender, EventArgs e)
         {
             if (sender is CircPump cp)
             {
-                _logger.LogDebug($"CP_OnClicked(). Name: {cp.Name}. Sending to Arduino.");
+                _logger.Debug($"CP_OnClicked(). Name: {cp.Name}. Sending to Arduino.");
                 _nsuSys.CmdCenter.MCUCommands.ToMcu.CircPumpCommands.Clicked(cp.Name).Send();
             }
             else
-                _logger.LogWarning("CP_Clicked(): sender is not CircPump. sender is '{senderType}'.", sender?.GetType());
+                _logger.Warning("CP_Clicked(): sender is not CircPump. sender is '{senderType}'.", sender?.GetType());
         }
 
 

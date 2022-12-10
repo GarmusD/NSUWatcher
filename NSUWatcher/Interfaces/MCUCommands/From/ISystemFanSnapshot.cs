@@ -1,13 +1,23 @@
-﻿namespace NSUWatcher.Interfaces.MCUCommands.From
+﻿using Newtonsoft.Json;
+using NSU.Shared;
+
+namespace NSUWatcher.Interfaces.MCUCommands.From
 {
-	public interface ISystemFanSnapshot : IMessageFromMcu
+    public interface ISystemFanSnapshot : IMessageFromMcu
     {
-		byte ConfigPos { get; set; }
-		bool Enabled { get; set; }
-		string Name { get; set; }
-		string TempSensorName { get; set; }
-		double MinTemperature { get; set; }
-		double MaxTemperature { get; set; }
-		int? CurrentPWM { get; set; }
+		[JsonProperty(JKeys.Generic.ConfigPos)]
+		public int ConfigPos { get; set; }
+		[JsonProperty(JKeys.Generic.Enabled)]
+		public bool Enabled { get; set; }
+		[JsonProperty(JKeys.Generic.Name)]
+		public string Name { get; set; }
+		[JsonProperty(JKeys.SystemFan.TSensorName)]
+		public string TempSensorName { get; set; }
+		[JsonProperty(JKeys.SystemFan.MinTemp)]
+		public double MinTemperature { get; set; }
+		[JsonProperty(JKeys.SystemFan.MaxTemp)]
+		public double MaxTemperature { get; set; }
+		[JsonProperty(JKeys.Generic.Value)]
+		public int? CurrentPWM { get; set; }
     }
 }

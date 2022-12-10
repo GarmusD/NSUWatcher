@@ -1,12 +1,17 @@
-﻿namespace NSUWatcher.Interfaces.MCUCommands.From
+﻿using Newtonsoft.Json;
+using NSU.Shared;
+
+namespace NSUWatcher.Interfaces.MCUCommands.From
 {
-#nullable enable
     public interface ISystemStatus : IMessageFromMcu
     {
-        string CurrentState { get; set; }
-        int FreeMem { get; set; }
-        int? UpTime { get; set; }
-        bool RebootRequired { get; set; }
+        [JsonProperty(propertyName: JKeys.Generic.Value)]
+        public string CurrentState { get; set; }
+        [JsonProperty(propertyName: JKeys.Syscmd.FreeMem)]
+        public int FreeMem { get; set; }
+        [JsonProperty(propertyName: JKeys.Syscmd.UpTime, Required = Required.AllowNull)]
+        public int? UpTime { get; set; }
+        [JsonProperty(JKeys.Syscmd.RebootRequired)]
+        public bool RebootRequired { get; set; }
     }
-#nullable enable
 }

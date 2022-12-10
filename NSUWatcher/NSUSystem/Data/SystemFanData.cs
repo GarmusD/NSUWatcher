@@ -5,7 +5,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class SystemFanData : ISystemFanDataContract
     {
-        public byte ConfigPos { get; set; }
+        public int ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; } = string.Empty;
         public string TempSensorName { get; set; } = string.Empty;

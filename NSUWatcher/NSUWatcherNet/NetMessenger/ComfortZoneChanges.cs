@@ -6,20 +6,20 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public static class ComfortZoneChanges
     {
-        public static NetMessage Message(IComfortZoneDataContract dataContract, string property)
+        public static NetMessage? Message(IComfortZoneDataContract dataContract, string property)
         {
-            switch (property)
+            return property switch
             {
-                case nameof(ComfortZone.CurrentRoomTemperature): return new NetMessage(
+                nameof(ComfortZone.CurrentRoomTemperature) => new NetMessage(
                     ComfortZoneRoomTempChanged.Create(dataContract.Name, dataContract.CurrentRoomTemperature)
-                    );
-                case nameof(ComfortZone.CurrentFloorTemperature): return new NetMessage(
+                    ),
+                nameof(ComfortZone.CurrentFloorTemperature) => new NetMessage(
                    ComfortZoneFloorTempChanged.Create(dataContract.Name, dataContract.CurrentRoomTemperature)
-                   );
-                case nameof(ComfortZone.ActuatorOpened): return new NetMessage(
+                   ),
+                nameof(ComfortZone.ActuatorOpened) => new NetMessage(
                    ComfortZoneActuatorOpenedChanged.Create(dataContract.Name, dataContract.ActuatorOpened)
-                   );
-                default: return null;
+                   ),
+                _ => null
             };
         }
     }

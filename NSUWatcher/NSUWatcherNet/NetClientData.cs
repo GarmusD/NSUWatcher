@@ -22,7 +22,7 @@ namespace NSUWatcher.NSUWatcherNet
         public bool CompressionSupported { get; set; } = true;
         public int CompressionProtocol { get; set; }
         public bool LoggedIn { get; set; } = false;
-        public INsuUser UserData { get; set; } = null;
+        public INsuUser? UserData { get; set; } = null;
         public bool IsReady { get; set; } = false;
         public NetClientAccepts ClientAccepts { get; set; } = NetClientAccepts.Alarm | NetClientAccepts.Error | NetClientAccepts.System;
         public string CommandID { get; set; } = string.Empty;
@@ -33,7 +33,7 @@ namespace NSUWatcher.NSUWatcherNet
             return $"User name: 'NotImplemented'. User IP: '{IPAddress}'";
         }
 
-        public bool Equals(NetClientData other)
+        public bool Equals([AllowNull] NetClientData other)
         {
             if (other == null) return false;
             return ClientID.Equals(other.ClientID);

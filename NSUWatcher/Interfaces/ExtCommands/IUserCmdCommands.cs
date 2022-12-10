@@ -2,6 +2,6 @@
 {
     public interface IUserCmdCommands
     {
-        IExternalCommand ExecUserCommand(string command);
+        public IExternalCommand ExecUserCommand(string command);
     }
 }

@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
 using System.Linq;
+using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
-using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -18,7 +18,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         
         private readonly List<Switch> _switches = new List<Switch>();
 
-        public Switches(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.Switches) {}
+        public Switches(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.Switches) {}
 
 
         private Switch FindSwitch(string name)
@@ -31,20 +31,21 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             return _switches.FirstOrDefault(x => x.ConfigPos == cfgPos);
         }
 
-        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case ISwitchSnapshot snapshot:
                     ProcessSnapshot(snapshot);
-                    return true;
+                    return;
 
                 case ISwitchInfo switchInfo:
                     ProcessInfo(switchInfo);
-                    return true;
+                    return;
 
                 default:
-                    return false;
+                    LogNotImplementedCommand(command);
+                    break;
             }
         }
 
@@ -64,13 +65,13 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             {
                 //Set isForced first because of OnStatusChange event, which sends unchecked isForced
                 sw.IsForced = switchInfo.IsForced;
-                sw.Status = (Status)Enum.Parse(typeof(Status), switchInfo.Status, true);
+                sw.Status = Enum.Parse<Status>(switchInfo.Status, true);
             }
         }
 
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 
@@ -79,9 +80,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             _switches.Clear();
         }
 
-        private void Switch_OnClicked(object sender, EventArgs e)
+        private void Switch_OnClicked(object? sender, EventArgs e)
         {
-            _logger.LogDebug($"Switch_OnClicked(). Name: {(sender as Switch)?.Name}. Sending to Arduino.");
+            _logger.Debug($"Switch_OnClicked(). Name: {(sender as Switch)?.Name}. Sending to Arduino.");
         }
 
         

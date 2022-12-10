@@ -18,7 +18,6 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories
                 "ArduinoV1" => new ArduinoV1Commands(sendAction),
                 _ => throw new NotImplementedException($"MCU Command factory '{factoryName}' not implemented.")
             };
-            ;
         }
     }
 }

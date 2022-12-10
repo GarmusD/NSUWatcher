@@ -13,23 +13,13 @@ namespace NSUWatcher.NSUSystem.Data
 
         public McuStatusData(ISystemStatus systemStatus)
         {
-            switch (systemStatus.CurrentState)
+            Status = systemStatus.CurrentState switch
             {
-                case JKeys.Syscmd.SystemBooting: 
-                    Status = MCUStatus.Booting;
-                    break;
-                case JKeys.Syscmd.ReadyPauseBoot:
-                    Status = MCUStatus.BootPauseReady;
-                    break;
-                case JKeys.Syscmd.SystemBootPaused: 
-                    Status = MCUStatus.BootPaused;
-                    break;
-                case JKeys.Syscmd.SystemRunning:
-                    Status = MCUStatus.Running;
-                    break;
-                default:
-                    Status = MCUStatus.Off;
-                    break;
+                JKeys.Syscmd.SystemBooting => MCUStatus.Booting,
+                JKeys.Syscmd.ReadyPauseBoot => MCUStatus.BootPauseReady,
+                JKeys.Syscmd.SystemBootPaused => MCUStatus.BootPaused,
+                JKeys.Syscmd.SystemRunning => MCUStatus.Running,
+                _ => MCUStatus.Off
             };
             FreeMem = systemStatus.FreeMem;
             UpTime = systemStatus.UpTime ?? 0;

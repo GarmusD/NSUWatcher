@@ -1,17 +1,22 @@
 ﻿using NSU.Shared.NSUNet;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace NSUWatcher.NSUWatcherNet
 {
 	public class NetClientRequirements
 	{
         public int UserLevelExact { get; set; } = -1;
+
         public int UserLevelHigherOrEqual { get; set; } = -1;
-		public List<Guid> ClientIDMustEqual { get; set;} = new List<Guid>();
+
+        public Guid ExcludeClientID { get; set; } = Guid.Empty;
+
+		public Guid ClientIDMustEqual { get; set;} = Guid.Empty;
+
         public int LoggedIn { get; set; } = -1;
+
         public int LoginStageEqual { get; set; } = -1;
+
         public int IsReady { get; set; } = -1;
 
         public NetClientAccepts ClientAccepts { get; set; } = NetClientAccepts.None;
@@ -26,7 +31,9 @@ namespace NSUWatcher.NSUWatcherNet
 
 			if (req.UserLevelHigherOrEqual != -1 && !((int)clientData.ClientType < req.UserLevelHigherOrEqual)) return false;
 
-			if (req.ClientIDMustEqual.Any() && !req.ClientIDMustEqual.Contains(clientData.ClientID)) return false;
+            if (!req.ExcludeClientID.Equals(Guid.Empty) && req.ExcludeClientID.Equals(clientData.ClientID)) return false;
+
+			if (!req.ClientIDMustEqual.Equals (Guid.Empty) && !req.ClientIDMustEqual.Equals (clientData.ClientID)) return false;
 
 			if (req.ClientAccepts != NetClientAccepts.None && !clientData.ClientAccepts.HasFlag(req.ClientAccepts)) return false;
 
@@ -65,20 +72,27 @@ namespace NSUWatcher.NSUWatcherNet
         public static NetClientRequirements CreateStandartClientOnly(NetClientData data, bool loggedIn = false, bool isReady = false)
 		{
 			NetClientRequirements req = CreateStandart(loggedIn, isReady);
-			req.ClientIDMustEqual.Add(data.ClientID);
+			req.ClientIDMustEqual = data.ClientID;
 			return req;
 		}
 
-        public static NetClientRequirements CreateStandartClientsOnly(Guid[] clientIDs, bool loggedIn = false, bool isReady = false)
-        {
-            NetClientRequirements req = CreateStandart(loggedIn, isReady);
-            req.ClientIDMustEqual.AddRange(clientIDs);
-            return req;
-        }
+		public static NetClientRequirements CreateStandartClientExclude(NetClientData data, bool loggedIn = true, bool isReady = true)
+		{
+			NetClientRequirements req = CreateStandart(loggedIn, isReady);
+			req.ExcludeClientID = data.ClientID;
+			return req;
+		}
 
 		public static NetClientRequirements CreateStandartClientOnlyAccept(NetClientData data, NetClientAccepts acc, bool loggedIn = true, bool isReady = true)
 		{
 			NetClientRequirements req = CreateStandartClientOnly(data, loggedIn, isReady);
+			req.ClientAccepts = acc;
+			return req;
+		}
+
+		public static NetClientRequirements CreateStandartClientExcludeAccept(NetClientData data, NetClientAccepts acc, bool loggedIn = true, bool isReady = true)
+		{
+			NetClientRequirements req = CreateStandartClientExclude(data, loggedIn, isReady);
 			req.ClientAccepts = acc;
 			return req;
 		}

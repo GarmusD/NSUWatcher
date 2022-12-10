@@ -1,13 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
+using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
-using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -17,24 +17,25 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override string[] SupportedTargets => new string[] { JKeys.RelayModule.TargetName };
 
-        public RelayModules(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.RelayModules)
+        public RelayModules(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.RelayModules)
         {
         }
 
-        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case IRelaySnapshot snapshot:
                     ProcessSnapshot(snapshot);
-                    return true;
+                    return;
 
                 case IRelayInfo status:
                     ProcessStatus(status);
-                    return true;
+                    return;
 
                 default:
-                    return false;
+                    LogNotImplementedCommand(command);
+                    return;
             }
         }
 
@@ -62,9 +63,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         }
 
 
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 

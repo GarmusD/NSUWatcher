@@ -4,7 +4,7 @@ namespace NSUWatcher.Interfaces.MCUCommands
 {
     public interface IToMcuCommands
     {
-        IToMcuCircPumpCommands CircPumpCommands { get; }
-        IToMcuSystemCommands SystemCommands { get; }
+        public IToMcuCircPumpCommands CircPumpCommands { get; }
+        public IToMcuSystemCommands SystemCommands { get; }
     }
 }

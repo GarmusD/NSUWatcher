@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 using NSU.Shared;
 using NSU.Shared.NSUSystemPart;
 using NSU.Shared.Serializer;
@@ -9,6 +8,7 @@ using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
+using Serilog;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -18,27 +18,28 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         
         private readonly List<SystemFan> _systemFans = new List<SystemFan>();
 
-        public SystemFans(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.SystemFan) {}
+        public SystemFans(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.SystemFan) {}
 
-        private SystemFan FindSystemFan(string name)
+        private SystemFan? FindSystemFan(string name)
         {
             return _systemFans.FirstOrDefault(f => f.Name == name);
         }
 
-        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case ISystemFanSnapshot snapshot:
                     ProcessSnapshot(snapshot);
-                    return true;
+                    return;
 
                 case ISystemFanInfo fanInfo:
                     ProcessInfo(fanInfo);
-                    return true;
+                    return;
 
                 default:
-                    return false;
+                    LogNotImplementedCommand(command);
+                    break;
             }
         }
 
@@ -46,7 +47,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             var fan = FindSystemFan(fanInfo.Name);
             if (fan != null) fan.CurrentPWM = fan.CurrentPWM;
-            else _logger.LogWarning($"SystemFan with name '{fanInfo.Name}' not founded.");
+            else _logger.Warning($"SystemFan with name '{fanInfo.Name}' not founded.");
         }
 
         private void ProcessSnapshot(ISystemFanSnapshot snapshot)
@@ -63,9 +64,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             };
         }
 
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 

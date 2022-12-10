@@ -4,6 +4,6 @@ namespace NSUWatcher.Interfaces.ExtCommands
 {
     public interface ISystemCommands
     {
-        IExternalCommand ResetMcu(ResetType resetType);
+        public IExternalCommand ResetMcu(ResetType resetType);
     }
 }

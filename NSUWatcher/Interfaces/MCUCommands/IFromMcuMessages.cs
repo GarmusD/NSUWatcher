@@ -2,6 +2,6 @@
 {
     public interface IFromMcuMessages
     {
-        IMessageFromMcu Parse(string command);
+        public IMessageFromMcu? Parse(string command);
     }
 }

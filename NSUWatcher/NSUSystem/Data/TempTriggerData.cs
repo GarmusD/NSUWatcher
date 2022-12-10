@@ -8,7 +8,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class TempTriggerData : ITempTriggerDataContract
     {
-        public byte ConfigPos { get; set; }
+        public int ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; } = string.Empty;
         public Status Status { get; set; }
@@ -17,7 +17,7 @@ namespace NSUWatcher.NSUSystem.Data
 
         public TempTriggerData()
         {
-            TempTriggerPieces = new TempTriggerPieceData[TempTrigger.MaxTempTriggerPieces];
+            TempTriggerPieces = new TempTriggerPieceData[ITempTriggerDataContract.MAX_TEMPTRIGGERPIECES];
         }
 
         public TempTriggerData(ITempTriggerSnapshot snapshot)
@@ -25,13 +25,13 @@ namespace NSUWatcher.NSUSystem.Data
             ConfigPos = snapshot.ConfigPos;
             Enabled = snapshot.Enabled;
             Name = snapshot.Name;
-            Status = snapshot.Status == null ? Status.UNKNOWN : (Status)Enum.Parse(typeof(Status), snapshot.Status, true);
-            TempTriggerPieces = new TempTriggerPieceData[TempTrigger.MaxTempTriggerPieces];
-            for (var i = 0; i < TempTrigger.MaxTempTriggerPieces; i++)
+            Status = snapshot.Status == null ? Status.UNKNOWN : Enum.Parse<Status>(snapshot.Status, true);
+            TempTriggerPieces = new TempTriggerPieceData[ITempTriggerDataContract.MAX_TEMPTRIGGERPIECES];
+            for (var i = 0; i < ITempTriggerDataContract.MAX_TEMPTRIGGERPIECES; i++)
             {
                 TempTriggerPieceData piece = new TempTriggerPieceData()
                 {
-                    Index = (byte)i,
+                    Index = i,
                     Enabled = snapshot.TempTriggerPieces[i].Enabled,
                     TSensorName = snapshot.TempTriggerPieces[i].TSensorName,
                     Condition = (TriggerCondition)snapshot.TempTriggerPieces[i].Condition,
@@ -45,7 +45,7 @@ namespace NSUWatcher.NSUSystem.Data
 
     public class TempTriggerPieceData : ITempTriggerPieceDataContract
     {
-        public byte Index { get; set; }
+        public int Index { get; set; }
         public bool Enabled { get; set; }
         public string TSensorName { get; set; } = string.Empty;
         public TriggerCondition Condition { get; set; }

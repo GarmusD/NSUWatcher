@@ -8,20 +8,20 @@ namespace NSUWatcher.Interfaces
 {
     public interface ICmdCenter
     {
-        event EventHandler<McuMessageReceivedEventArgs> McuMessageReceived;
-        event EventHandler<SystemMessageEventArgs> SystemMessageReceived;
-        event EventHandler<ExternalCommandEventArgs> ExternalCommandReceived;
-        event EventHandler<ManualCommandEventArgs> ManualCommandReceived;
+        public event EventHandler<McuMessageReceivedEventArgs>? McuMessageReceived;
+        public event EventHandler<SystemMessageEventArgs>? SystemMessageReceived;
+        public event EventHandler<ExternalCommandEventArgs>? ExternalCommandReceived;
+        public event EventHandler<ManualCommandEventArgs>? ManualCommandReceived;
 
-        IMcuMessageTransport MessageTransport { get; set; }
-        IMcuCommands MCUCommands { get; }
-        IExternalCommands ExternalCommands { get; }
+        public IMessageTransport MessageTransport { get; set; }
+        public IMcuCommands MCUCommands { get; }
+        public IExternalCommands ExternalCommands { get; }
 
-        //Task StartAsync(CancellationToken cancellationToken);
-        //Task StopAsync(CancellationToken cancellationToken);
+        public Task StartAsync(CancellationToken cancellationToken);
+        public Task StopAsync(CancellationToken cancellationToken);
         //public void ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, Action<IExternalCommandResult, object> onCommandResult, object context);
-        IExternalCommandResult ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, object context);
-        void ExecManualCommand(string command);
+        public IExternalCommandResult? ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, object? context);
+        public void ExecManualCommand(string command);
     }
     
     public enum SysMessage
@@ -30,6 +30,17 @@ namespace NSUWatcher.Interfaces
         TransportConnectFailed,
         TransportDisconnected,
         McuCrashed,
+        TransportAppCrashed
+    }
+
+    public class McuMessageReceivedEventArgs
+    {
+        public IMessageFromMcu Message { get; }
+
+        public McuMessageReceivedEventArgs(IMessageFromMcu command)
+        {
+            Message = command ?? throw new ArgumentNullException(nameof(command), "Message from MCU cannot be null.");
+        }
     }
 
     public class SystemMessageEventArgs : EventArgs
@@ -42,15 +53,6 @@ namespace NSUWatcher.Interfaces
         }
     }
 
-    public class McuMessageReceivedEventArgs : EventArgs
-    {
-        public IMessageFromMcu Message { get; private set; }
-
-        public McuMessageReceivedEventArgs(IMessageFromMcu message)
-        {
-            Message = message;
-        }
-    }
     /*public class ExternalCommandEventArgs : EventArgs
     {
         public IExternalCommand Command { get; }
@@ -70,9 +72,9 @@ namespace NSUWatcher.Interfaces
     {
         public IExternalCommand Command { get; }
         public INsuUser NsuUser { get; }
-        public IExternalCommandResult Result { get; set; } = null;
-        public object Context { get; set; }
-        public ExternalCommandEventArgs(IExternalCommand command, INsuUser nsuUser, object context = null)
+        public IExternalCommandResult? Result { get; set; } = null;
+        public object? Context { get; set; }
+        public ExternalCommandEventArgs(IExternalCommand command, INsuUser nsuUser, object? context = null)
         {
             Command = command;
             NsuUser = nsuUser;

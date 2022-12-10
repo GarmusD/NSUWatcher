@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
+using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using System.CommandLine;
 using NSUWatcher.Interfaces;
@@ -9,7 +10,6 @@ using System.CommandLine.IO;
 using System.CommandLine.Parsing;
 using NSU.Shared.DTO.ExtCommandContent;
 using NSU.Shared.Serializer;
-using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -21,9 +21,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         private readonly Parser _parser;
         private readonly UserConsole _userConsole;
 
-        public Usercmd(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.UserCommand)
+        public Usercmd(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.UserCommand)
         {
-            _userConsole = new UserConsole(_logger);
+            _userConsole = new UserConsole(logger);
             _rootCommand = new RootCommand("Supported user commands")
             {
                 SetupRebootCommand(),
@@ -59,7 +59,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 case "hard":
                     return;
                 default:
-                    _logger.LogInformation($"Unsupported argument '{argument}' provided.");
+                    _logger.Information($"Unsupported argument '{argument}' provided.");
                     break;
             }
         }
@@ -69,12 +69,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             //
         }
 
-        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
-            return false;
+
         }
 
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
             UserCmdExecCommandContent? cmdContent = _serializer.Deserialize<UserCmdExecCommandContent>(command.Content);
             if(cmdContent != null)
@@ -192,7 +192,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "ProcessWoodBoilerCmd() exception:");
+                    _logger.Error(ex, "ProcessWoodBoilerCmd() exception:");
                 }
             }
         }
@@ -214,7 +214,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "ProcessSwitchCmds() exception:");
+                    _logger.Error(ex, "ProcessSwitchCmds() exception:");
                 }
             }
         }
@@ -236,7 +236,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 }
                 else
                 {
-                    _logger.LogError($"Invalid command: {cmd}");
+                    _logger.Error($"Invalid command: {cmd}");
                 }
                 byte b;
                 if (byte.TryParse(parts[2], out b))
@@ -247,7 +247,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
             else
             {
-                _logger.LogError($"Invalid command: {cmd}");
+                _logger.Error($"Invalid command: {cmd}");
             }
         }
 
@@ -272,7 +272,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     }
                     else
                     {
-                        _logger.LogError($"Invalid command: {cmd}");
+                        _logger.Error($"Invalid command: {cmd}");
                     }
                 }
             }
@@ -306,12 +306,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     _errWriter = errWriter;
                 }
 
-                public void Write(string value)
+                public void Write(string? value)
                 {
                     if (_errWriter)
-                        _logger.LogError(value);
+                        _logger.Error(value);
                     else
-                        _logger.LogInformation(value);
+                        _logger.Information(value);
                 }
             }
         }

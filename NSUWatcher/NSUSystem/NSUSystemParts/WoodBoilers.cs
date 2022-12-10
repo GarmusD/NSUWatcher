@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
+using Serilog;
 using System.Linq;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
@@ -8,7 +9,6 @@ using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
-using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -20,35 +20,36 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private readonly List<WoodBoiler> _boilers = new List<WoodBoiler>();
 
-        public WoodBoilers(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.WoodBoilers) { }
+        public WoodBoilers(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.WoodBoilers) { }
 
-        public WoodBoiler FindWoodBoiler(string name)
+        public WoodBoiler? FindWoodBoiler(string name)
         {
             return _boilers.FirstOrDefault(x => x.Name == name);
         }
 
-        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case IWoodBoilerSnapshot snapshot:
                     ProcessSnapshot(snapshot);
-                    return true;
+                    return;
 
                 case IWoodBoilerInfo boilerInfo:
                     ProcessWoodBoilerInfo(boilerInfo);
-                    return true;
+                    return;
 
                 case IWoodBoilerLadomatInfo ladomatInfo:
                     ProcessLadomatInfo(ladomatInfo);
-                    return true;
+                    return;
 
                 case IWoodBoilerExhaustFanInfo exhaustFanInfo:
                     ProcessExhaustFanInfo(exhaustFanInfo);
-                    return true;
+                    return;
 
                 default:
-                    return false;
+                    LogNotImplementedCommand(command);
+                    break;
             }
         }
 
@@ -72,8 +73,8 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             if (wb != null)
             {
                 wb.CurrentTemp = boilerInfo.CurrentTemperature;
-                wb.WBStatus =  (WoodBoilerStatus)Enum.Parse(typeof(WoodBoilerStatus), boilerInfo.WBStatus, true);
-                wb.TempStatus = (WoodBoilerTempStatus)Enum.Parse(typeof(WoodBoilerTempStatus), boilerInfo.TempStatus, true);
+                wb.WBStatus = Enum.Parse<WoodBoilerStatus>(boilerInfo.WBStatus, true);
+                wb.TempStatus = Enum.Parse<WoodBoilerTempStatus>(boilerInfo.TempStatus, true);
             }
             else LogWBNotFound(boilerInfo.Name);
         }
@@ -81,24 +82,24 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         private void ProcessLadomatInfo(IWoodBoilerLadomatInfo ladomatInfo)
         {
             var wb = FindWoodBoiler(ladomatInfo.Name);
-            if(wb != null) wb.LadomStatus = (Status)Enum.Parse(typeof(Status), ladomatInfo.LadomatStatus, true);
+            if(wb != null) wb.LadomStatus = Enum.Parse<Status>(ladomatInfo.LadomatStatus, true);
         }
 
         private void ProcessExhaustFanInfo(IWoodBoilerExhaustFanInfo exhaustFanInfo)
         {
             var wb = FindWoodBoiler(exhaustFanInfo.Name);
-            if (wb != null) wb.ExhaustFanStatus = (Status)Enum.Parse(typeof(Status), exhaustFanInfo.ExhaustFanStatus, true);
+            if (wb != null) wb.ExhaustFanStatus = Enum.Parse<Status>(exhaustFanInfo.ExhaustFanStatus, true);
         }
 
         private void LogWBNotFound(string name)
         {
-            _logger.LogWarning($"WoodBoiler '{name}' not founded.");
+            _logger.Warning($"WoodBoiler '{name}' not founded.");
         }
 
 
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 

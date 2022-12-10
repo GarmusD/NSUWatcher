@@ -2,6 +2,6 @@
 {
     public interface IBinUploaderCommands
     {
-        IExternalCommand UploadDataChunk(int progress, string data);
+        public IExternalCommand UploadDataChunk(int progress, string data);
     }
 }

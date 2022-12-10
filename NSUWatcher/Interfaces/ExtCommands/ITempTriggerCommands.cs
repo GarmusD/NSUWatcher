@@ -4,6 +4,6 @@ namespace NSUWatcher.Interfaces.ExtCommands
 {
     public interface ITempTriggerCommands
     {
-        IExternalCommand Setup(byte configPos, bool enabled, string name, params TriggerPiece[] triggerPieces);
+        public IExternalCommand Setup(byte configPos, bool enabled, string name, params TriggerPiece[] triggerPieces);
     }
 }

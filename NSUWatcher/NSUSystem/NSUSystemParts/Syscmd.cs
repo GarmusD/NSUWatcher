@@ -1,4 +1,5 @@
 ﻿using System;
+using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSU.Shared.NSUSystemPart;
@@ -8,7 +9,6 @@ using NSU.Shared.DataContracts;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
-using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -20,27 +20,24 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private readonly MCU _mcu;
         private readonly DaylightSavingTimeHelper _dstHelper;
-        private bool _executingSnapshotDone = false;
 
-        public Syscmd(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.System)
+        public Syscmd(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.System)
         {
             sys.CmdCenter.SystemMessageReceived += CmdCenter_SystemMessageReceived;
             _mcu = new MCU();
             _mcu.PropertyChanged += Mcu_PropertyChanged;
 
-            _dstHelper = new DaylightSavingTimeHelper(loggerFactory.CreateLogger<DaylightSavingTimeHelper>());
+            _dstHelper = new DaylightSavingTimeHelper(logger);
             _dstHelper.Start();
             _dstHelper.DaylightTimeChanged += (s, e) =>
             {
-                _logger.LogDebug("Syscmd: DaylightTimeChange detected.");
                 if (_mcu.Status == MCUStatus.Running)
                     SetMcuClock();
             };
         }
 
-        private void CmdCenter_SystemMessageReceived(object sender, SystemMessageEventArgs e)
+        private void CmdCenter_SystemMessageReceived(object? sender, Interfaces.SystemMessageEventArgs e)
         {
-            _logger.LogDebug($"Syscmd: CmdCenter_SystemMessageReceived: {e.Message}");
             switch (e.Message)
             {
                 case Interfaces.SysMessage.TransportConnected:
@@ -51,52 +48,44 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     // Hold last values or clear?
                     break;
                 case Interfaces.SysMessage.McuCrashed:
-                    ProcessMcuCrashed();
+                    
                     break;
                 default:
                     break;
             }
         }
 
-        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
+        public override void ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case ISystemStatus systemStatus:
                     ProcessSystemStatusCommand(systemStatus);
-                    return true;
+                    break;
 
                 case ISystemSnapshotDone systemSnapshotDone:
                     ProcessSnapshotDone(systemSnapshotDone);
-                    return true;
-
-                case ISystemSetTimeResult systemSetTimeResult:
-                    return true;
+                    break;
 
                 default:
-                    return false;
+                    _logger.Warning($"Not implemented command from mcu: {command.GetType().FullName}");
+                    break;
             }
         }
 
         private void ProcessSystemStatusCommand(ISystemStatus systemStatus)
         {
-            _logger.LogDebug($"Syscmd: ProcessSystemStatusCommand: {systemStatus.CurrentState}");
             McuStatusData data = new McuStatusData(systemStatus);
             _mcu.SetData(data);
         }
 
         private void ProcessSnapshotDone(ISystemSnapshotDone systemSnapshotDone)
         {
-            if (_executingSnapshotDone) return;
-            _executingSnapshotDone = true;
-            _logger.LogDebug($"Syscmd: ProcessSnapshotDone: Notify parts... Count: {_nsuSys.NSUParts.Count}");
             foreach (var nsuPart in _nsuSys.NSUParts)
             {
                 TrySendToNsuPart(nsuPart, systemSnapshotDone);
             }
-            _logger.LogDebug("Syscmd: ProcessSnapshotDone: _nsuSys.SetReady(true);");
             _nsuSys.SetReady(true);
-            _executingSnapshotDone = false;
         }
 
         private void TrySendToNsuPart(NSUSysPartBase item, ISystemSnapshotDone systemSnapshotDone)
@@ -107,20 +96,20 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"{item.PartType} Exception on ShapshotDone:");
+                _logger.Error(ex, $"{item.PartType} Exception on ShapshotDone:");
             }
         }
 
         private void ProcessMcuCrashed()
         {
-            _logger.LogDebug("Syscmd: ProcessMcuCrashed()");
+            _logger.Debug("ProcessMcuCrashed()");
             _nsuSys.SetReady(false);
             _mcu.Status = MCUStatus.Off;
         }
 
         private void ProcessMsgTransportStarted()
         {
-            _logger.LogDebug("Syscmd: ProcessMsgTransportStarted()");
+            _logger.Debug("ProcessMsgTransportStarted()");
             // Workaround for the very first command - on mcu side it comes damaged
             _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands.EmptyCommand().Send();
             _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands.GetMcuStatus().Send();
@@ -134,7 +123,6 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private void Mcu_StatusPropertyChanged()
         {
-            _logger.LogDebug($"Syscmd: Mcu_StatusPropertyChanged: {_mcu.Status}");
             switch (_mcu.Status)
             {
                 case MCUStatus.Off:
@@ -155,7 +143,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     break;
 
                 default:
-                    _logger.LogError($"Mcu_StatusPropertyChanged(): Status '{_mcu.Status}' not implemented.");
+                    _logger.Error($"Mcu_StatusPropertyChanged(): Status '{_mcu.Status}' not implemented.");
                     return;
             }
         }
@@ -182,15 +170,15 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             });
         }
 
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 
         public void SetMcuClock()
         {
-            _logger.LogInformation("Setting time for MCU...");
+            _logger.Information("Setting time for MCU...");
             DateTime dt = DateTime.Now;
             _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands
                 .SetTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second)
@@ -202,14 +190,13 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             if (_nsuSys.Config.CmdsToExec == null) return;
             foreach (string item in _nsuSys.Config.CmdsToExec)
             {
-                _logger.LogDebug("UserCmd: " + item);
+                _logger.Debug("UserCmd: " + item);
                 _nsuSys.CmdCenter.ExecManualCommand(item);
             }
         }
 
         private void RequestNsuSnapshot()
         {
-            _logger.LogDebug("Syscmd: RequestNsuSnapshot(): Clearing parts...");
             //Clear before new snapshot
             foreach (var item in _nsuSys.NSUParts)
             {
@@ -217,7 +204,6 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
             _nsuSys.XMLConfig.Clear();
 
-            _logger.LogDebug("Syscmd: RequestNsuSnapshot(): Requesting snapshot...");
             _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands.RequestSnapshot().Send();
         }
 
@@ -228,6 +214,8 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override void Clear()
         {
+            //
+            _mcu.Status = MCUStatus.Off;
         }
 
 

@@ -1,25 +1,43 @@
-﻿namespace NSUWatcher.Interfaces.MCUCommands.From
+﻿using Newtonsoft.Json;
+using NSU.Shared;
+
+namespace NSUWatcher.Interfaces.MCUCommands.From
 {
-#nullable enable
 	public interface IWoodBoilerSnapshot : IMessageFromMcu
     {
-		byte ConfigPos { get; set; }
-		bool Enabled { get; set; }
-		string Name { get; set; }
-		double WorkingTemperature { get; set; }
-		double Histeresis { get; set; }
-		string TempSensorName { get; set; }
-		string KTypeName { get; set; }
-		int ExhaustFanChannel { get; set; }
-		int LadomChannel { get; set; }
-		string LadomatTriggerName { get; set; }
-		double LadomatWorkingTemp { get; set; }
-		string WaterBoilerName { get; set; }
-		double? CurrentTemperature { get; set; }
-		string? Status { get; set; }
-		string? LadomatStatus { get; set; }
-		string? ExhaustFanStatus { get; set; }
-		string? TemperatureStatus { get; set; }
+		[JsonProperty(JKeys.Generic.ConfigPos)]
+		public int ConfigPos { get; set; }
+		[JsonProperty(JKeys.Generic.Enabled)]
+		public bool Enabled { get; set; }
+		[JsonProperty(JKeys.Generic.Name)]
+		public string Name { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.WorkingTemp)]
+		public double WorkingTemperature { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.Histeresis)]
+		public double Histeresis { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.TSensorName)]
+		public string TempSensorName { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.KTypeName)]
+		public string KTypeName { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.ExhaustFanChannel)]
+		public int ExhaustFanChannel { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.LadomChannel)]
+		public int LadomChannel { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.LadomatTriggerName)]
+		public string LadomatTriggerName { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.LadomatWorkTemp)]
+		public double LadomatWorkingTemp { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.WaterBoilerName)]
+		public string WaterBoilerName { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.CurrentTemp)]
+		public double? CurrentTemperature { get; set; }
+		[JsonProperty(JKeys.Generic.Status)]
+		public string? Status { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.LadomatStatus)]
+		public string? LadomatStatus { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.ExhaustFanStatus)]
+		public string? ExhaustFanStatus { get; set; }
+		[JsonProperty(JKeys.WoodBoiler.TemperatureStatus)]
+		public string? TemperatureStatus { get; set; }
     }
-#nullable disable
 }

@@ -6,14 +6,14 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public static class RelayModuleChanges
     {
-        public static NetMessage Message(IRelayModuleDataContract dataContract, string property)
+        public static NetMessage? Message(IRelayModuleDataContract dataContract, string property)
         {
-            switch (property)
+            return property switch
             {
-                case nameof(RelayModule.StatusFlags): return new NetMessage(
+                nameof(RelayModule.StatusFlags) => new NetMessage(
                     RelayModuleChanged.Create(dataContract.ConfigPos, dataContract.StatusFlags, dataContract.LockFlags)
-                    );
-                default: return null;
+                    ),
+                _ => null
             };
         }
     }

@@ -1,15 +1,16 @@
-﻿using NSU.Shared.NSUNet;
+﻿using NSU.Shared.Compress;
+using NSU.Shared.NSUNet;
 using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Timers;
+using Serilog;
 using NSU.Shared.DTO.NsuNet;
 using System.Collections.Generic;
 using System.Threading;
 using Timer = System.Timers.Timer;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUWatcherNet
 {
@@ -30,12 +31,12 @@ namespace NSUWatcher.NSUWatcherNet
         public const int PING_INTERVAL = 15 * 60;
 
         //public event EventHandler<NetClientDataReceivedEventArgs>? DataReceived;
-        public event EventHandler<EventArgs> Disconnected;
+        public event EventHandler<EventArgs>? Disconnected;
 
         public bool Connected => !_disconnected && _tcpClient != null && _tcpClient.Connected;
         public NetClientData ClientData => _clientData;
 
-        private readonly ILogger<NetClient> _logger;
+        private readonly ILogger _logger;
         private readonly TcpClient _tcpClient;
         private readonly NetworkStream _netStream;
         private readonly InternalArgBuilder _idra = new InternalArgBuilder();
@@ -52,10 +53,10 @@ namespace NSUWatcher.NSUWatcherNet
 
         private bool _disconnected = false;
 
-        public NetClient(TcpClient client, NetMessenger.Messenger netMessenger, ILogger<NetClient> logger)
+        public NetClient(TcpClient client, NetMessenger.Messenger netMessenger, ILogger logger)
         {
             _tcpClient = client;
-            _logger = logger;//.ForContext<NetClient>();
+            _logger = logger.ForContext<NetClient>();
             _netMessenger = netMessenger;
             _netStream = client.GetStream();
             _rcvBuffer = new byte[client.ReceiveBufferSize];
@@ -82,14 +83,14 @@ namespace NSUWatcher.NSUWatcherNet
 
         private void PingTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            _logger.LogDebug("PingTimer_Elapsed()");
+            _logger.Debug("PingTimer_Elapsed()");
             Send(new NetMessage(new PingRequest()));
         }
 
         private void RespTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             //No response over time. Old client?
-            _logger.LogDebug("RespTimer_Elapsed()");
+            _logger.Debug("RespTimer_Elapsed()");
             DisconnectAndRaise();
         }
 
@@ -138,7 +139,7 @@ namespace NSUWatcher.NSUWatcherNet
             _idra.Process(_rcvBuffer, 0, count);
             while (_idra.DataAvailable)
             {
-                NetMessage message = null;
+                NetMessage? message = null;
                 var args = _idra.GetArgs();
                 if (args.DataType == NetDataType.String)
                 {
@@ -147,7 +148,7 @@ namespace NSUWatcher.NSUWatcherNet
 
                 if (message != null)
                 {
-                    INetMessage response = _netMessenger.ProcessNetMessage(message);
+                    INetMessage? response = _netMessenger.ProcessNetMessage(message);
                     if (response != null)
                         Send(response);
                 }
@@ -202,7 +203,7 @@ namespace NSUWatcher.NSUWatcherNet
                     ResetPinger();
                     return true;
                 }
-                _logger.LogDebug("SendBuffer() netStream is null or not writable.", true);
+                _logger.Debug("SendBuffer() netStream is null or not writable.", true);
                 return false;
             }
             //client disconnected
@@ -213,7 +214,7 @@ namespace NSUWatcher.NSUWatcherNet
         public void DisconnectAndRaise()
         {
             if (_disconnected) return;
-            _logger.LogDebug("Disconnecting client " + ClientData.ClientID.ToString() + " and raising event.", true);
+            _logger.Debug("Disconnecting client " + ClientData.ClientID.ToString() + " and raising event.", true);
             Disconnect();
             Disconnected?.Invoke(this, EventArgs.Empty);
         }
@@ -222,7 +223,7 @@ namespace NSUWatcher.NSUWatcherNet
         {
             if (_disconnected) return;
             _disconnected = true;
-            _logger.LogDebug("Disconnect()");
+            _logger.Debug("Disconnect()");
 
             _are.Set();
             _pingTimer.Dispose();
@@ -230,7 +231,7 @@ namespace NSUWatcher.NSUWatcherNet
             _tcpClient.Close();
             _tcpClient.Dispose();
 
-            _logger.LogDebug("Disconnect() DONE.", true);
+            _logger.Debug("Disconnect() DONE.", true);
         }
     }
 }
