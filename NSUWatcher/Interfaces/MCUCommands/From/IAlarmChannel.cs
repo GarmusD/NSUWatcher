@@ -1,13 +1,8 @@
-﻿using Newtonsoft.Json;
-using NSU.Shared;
-
-namespace NSUWatcher.Interfaces.MCUCommands.From
+﻿namespace NSUWatcher.Interfaces.MCUCommands.From
 {
-    public interface IAlarmChannel : IMessageFromMcu
+	public interface IAlarmChannel : IMessageFromMcu
 	{
-		[JsonProperty(JKeys.Alarm.Channel)]
-		public int Channel { get; set; }
-		[JsonProperty(JKeys.Alarm.IsOpen)]
-		public bool IsOpen { get; set; }
+		int Channel { get; set; }
+		bool IsOpen { get; set; }
 	}
 }

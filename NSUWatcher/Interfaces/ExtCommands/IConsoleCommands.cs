@@ -2,8 +2,8 @@
 {
     public interface IConsoleCommands
     {
-        public IExternalCommand Start();
-        public IExternalCommand Stop();
-        public IExternalCommand ExecCommandLine(string cmdLine);
+        IExternalCommand Start();
+        IExternalCommand Stop();
+        IExternalCommand ExecCommandLine(string cmdLine);
     }
 }

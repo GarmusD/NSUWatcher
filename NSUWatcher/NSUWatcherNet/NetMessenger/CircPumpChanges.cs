@@ -6,14 +6,14 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public static class CircPumpChanges
     {
-        public static NetMessage? Message(ICircPumpDataContract dataContract, string property)
+        public static NetMessage Message(ICircPumpDataContract dataContract, string property)
         {
-            return property switch
+            switch (property)
             {
-                nameof(CircPump.Status) => new NetMessage(
+                case nameof(CircPump.Status): return new NetMessage(
                     CircPumpStatusChanged.Create(dataContract.Name, dataContract.Status.ToString(), dataContract.CurrentSpeed.ToString(), dataContract.OpenedValvesCount.ToString())
-                    ),
-                _ => null
+                    );
+                default: return null;
             };
         }
     }

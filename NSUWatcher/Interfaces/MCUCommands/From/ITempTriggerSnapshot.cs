@@ -1,21 +1,22 @@
-﻿using Newtonsoft.Json;
-using NSU.Shared;
-
-namespace NSUWatcher.Interfaces.MCUCommands.From
+﻿namespace NSUWatcher.Interfaces.MCUCommands.From
 {
+#nullable enable
     public interface ITempTriggerSnapshot : IMessageFromMcu
     {
-        [JsonProperty(JKeys.Generic.ConfigPos)]
-        public int ConfigPos { get; set; }
-        [JsonProperty(JKeys.Generic.Enabled)]
-        public bool Enabled { get; set; }
-        [JsonProperty(JKeys.Generic.Name)]
-        public string Name { get; set; }
-        [JsonProperty(JKeys.TempTrigger.Pieces)]
-        public ITempTriggerPiece[] TempTriggerPieces { get; set; }
-#nullable enable
-        [JsonProperty(JKeys.Generic.Status)]
-        public string? Status { get; set; }
+        byte ConfigPos { get; set; }
+        bool Enabled { get; set; }
+        string Name { get; set; }
+        ITempTriggerPiece[] TempTriggerPieces { get; set; }   
+        string? Status { get; set; }
+    }
 #nullable disable
+
+    public interface ITempTriggerPiece : IMessageFromMcu
+    {
+        bool Enabled { get; set; }
+        string TSensorName { get; set; }
+        int Condition { get; set; }
+        double Temperature { get; set; }
+        double Histeresis { get; set; }
     }
 }

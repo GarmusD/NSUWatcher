@@ -7,7 +7,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class WoodBoilerData : IWoodBoilerDataContract
     {
-        public int ConfigPos { get; set; }
+        public byte ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; } = string.Empty;
         public string TSensorName { get; set; } = string.Empty;
@@ -35,14 +35,14 @@ namespace NSUWatcher.NSUSystem.Data
             TSensorName = snapshot.TempSensorName;
             KTypeName = snapshot.KTypeName;
             LadomChannel = snapshot.LadomChannel;
-            LadomStatus = snapshot.LadomatStatus == null ? Status.UNKNOWN : Enum.Parse<Status>(snapshot.LadomatStatus, true);
+            LadomStatus = snapshot.LadomatStatus == null ? Status.UNKNOWN : (Status)Enum.Parse(typeof(Status), snapshot.LadomatStatus, true);
             ExhaustFanChannel = snapshot.ExhaustFanChannel;
-            ExhaustFanStatus = snapshot.ExhaustFanStatus == null ? Status.UNKNOWN : Enum.Parse<Status>(snapshot.ExhaustFanStatus, true);
+            ExhaustFanStatus = snapshot.ExhaustFanStatus == null ? Status.UNKNOWN : (Status)Enum.Parse(typeof(Status), snapshot.ExhaustFanStatus, true);
             WorkingTemp = snapshot.WorkingTemperature;
             Histeresis = snapshot.Histeresis;
-            WBStatus = snapshot.Status == null ? WoodBoilerStatus.UNKNOWN : Enum.Parse<WoodBoilerStatus>(snapshot.Status);
+            WBStatus = snapshot.Status == null ? WoodBoilerStatus.UNKNOWN : (WoodBoilerStatus)Enum.Parse(typeof(WoodBoilerStatus), snapshot.Status);
             CurrentTemp = snapshot.CurrentTemperature.GetValueOrDefault();
-            TempStatus = snapshot.TemperatureStatus == null ? WoodBoilerTempStatus.Stable : Enum.Parse<WoodBoilerTempStatus>(snapshot.TemperatureStatus, true);
+            TempStatus = snapshot.TemperatureStatus == null ? WoodBoilerTempStatus.Stable : (WoodBoilerTempStatus)Enum.Parse(typeof(WoodBoilerTempStatus), snapshot.TemperatureStatus, true);
             LadomatTemp = snapshot.LadomatWorkingTemp;
             LadomatTriggerName = snapshot.LadomatTriggerName;
             WaterBoilerName = snapshot.WaterBoilerName;

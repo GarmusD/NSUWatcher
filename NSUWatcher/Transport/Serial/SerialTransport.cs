@@ -1,245 +1,283 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json.Serialization;
-using Newtonsoft.Json;
 using NSUWatcher.Interfaces;
-using Serilog;
-using System.Diagnostics;
-using System.IO;
 using System;
-using TransportDataContracts;
-using System.Threading;
 using NSUWatcher.Transport.Serial.Config;
 using NSUWatcher.Exceptions;
+using System.IO.Ports;
+using System.Linq;
+using System.Text;
+using Microsoft.Extensions.Hosting;
+using System.Threading.Tasks;
+using System.Threading;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NSUWatcher.Transport.Serial
 {
-    public class SerialTransport : IMessageTransport
+    public class SerialTransport : IMcuMessageTransport, IHostedService
     {
         // Consts
-        private const string ClientExeName = "nsuCom";
+        private const int BufferSize = 1024;
+        
+        //Events
+        public event EventHandler<TransportDataReceivedEventArgs> DataReceived;
+        public event EventHandler<TransportStateChangedEventArgs> StateChanged;
 
         // Properties
-        public bool IsConnected => _serialProcess != null && !_serialProcess.HasExited;
+        public bool IsConnected => _serialPort != null && _serialPort.IsOpen;
+        public char CommandDelimiter { get => _commandDelimiter; set => _commandDelimiter = value; }
 
         // Private
+        private SerialPort _serialPort;
         private readonly ILogger _logger;
-        private readonly JsonSerializerSettings _jsonSettings;
-        private Process? _serialProcess = null;
-        private readonly AutoResetEvent _dataReceivedEvent = new AutoResetEvent(false);
-        private MessageData? _messageData = null;
-        private bool _stopping = false;
+        private char _commandDelimiter;
+        private readonly byte[] _buffer;
+        private int _bufferIdx;
+        private CancellationTokenSource _readPortCancel = null;
 
-        public SerialTransport(IConfiguration config, ILogger logger)
+        
+
+        public SerialTransport(IConfiguration config, ILoggerFactory loggerFactory)
         {
-            _logger = logger.ForContext<SerialTransport>();
-            SerialConfig? cfg = config.GetSection("transport:serial").Get<SerialConfig?>();
+            _logger = loggerFactory.CreateLoggerShort<SerialTransport>() ?? NullLoggerFactory.Instance.CreateLogger<SerialTransport>();
+            _logger.LogDebug("Creating SerialTransport.");
+            if(config == null)
+            {
+                _logger.LogError("SerialTransport: Config is null.");
+                throw new ArgumentNullException("config");
+            }
+
+            SerialConfig cfg = LoadConfig(config);
+            if(cfg == null)
+            {
+                string errMsg = "SerialConfig is null.";
+                _logger.LogError(errMsg);
+                throw new ConfigurationValueMissingException(errMsg);
+            }
+
+            if (!SerialPort.GetPortNames().Contains(cfg.ComPort))
+            {
+                string errMsg = $"ComPort '{cfg.ComPort}' does not exist.";
+                _logger.LogCritical(errMsg);
+                throw new ConfigurationValueMissingException(errMsg);
+            }
+
+            _logger.LogDebug($"Creating SerialPort({cfg.ComPort}, {cfg.BaudRate})");
+            _serialPort = new SerialPort(cfg.ComPort, cfg.BaudRate)
+            {
+                RtsEnable = true
+            };
+            _serialPort.DataReceived += SerialPort_DataReceived;
+            _serialPort.ErrorReceived += SerialPort_ErrorReceived;
+
+            _buffer = new byte[BufferSize];
+            _bufferIdx = 0;
+
+            _commandDelimiter = '\n';
+            _logger.LogTrace("SerialTransport created.");
+        }
+        
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("SerialTransport StartAsync()");
+            return Task.CompletedTask;
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogDebug("SerialTransport StopAsync()");
+            return Task.CompletedTask;
+        }
+
+        private SerialConfig LoadConfig(IConfiguration config)
+        {
+            SerialConfig cfg = config.GetSection("transport:serial").Get<SerialConfig>();
             if (cfg is null)
             {
-                _logger.Error("Configuration section \"transport:serial\" is missing.");
-                throw new ConfigurationValueMissingException("Configuration section \"transport:serial\" is missing.");
+                string errMsg = "Configuration section \"transport:serial\" is missing.";
+                _logger.LogCritical(errMsg);
+                throw new ConfigurationValueMissingException(errMsg);
             }
 
-            if (!File.Exists(ClientExeName))
+            if (string.IsNullOrEmpty(cfg.ComPort) || cfg.BaudRate <= 0)
             {
-                _logger.Error($"An required '{ClientExeName}' executable not found.");
-                throw new FileNotFoundException(ClientExeName);
+                string errMsg = "Configuration contains invalid ComPort or BaudRate values for section \"transport:serial\".";
+                _logger.LogCritical(errMsg);
+                throw new ConfigurationValueMissingException(errMsg);
             }
 
-            _jsonSettings = new JsonSerializerSettings
-            {
-                ContractResolver = new CamelCasePropertyNamesContractResolver()
-            };
-
-            StartNsuComProcess(cfg);
+            return cfg;
         }
 
-        private void StartNsuComProcess(SerialConfig cfg)
+        private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            ProcessStartInfo psi = new ProcessStartInfo(ClientExeName, BuildArgs(cfg))
+            _logger.LogDebug("SerialPort - DataReceived event.");
+            var readCount = _serialPort.Read(_buffer, _bufferIdx, BufferSize - _bufferIdx);
+            if (readCount > 0)
             {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false
-            };
-            _serialProcess = Process.Start(psi);
-            _serialProcess.BeginOutputReadLine();
-            _serialProcess.OutputDataReceived += (s, e) =>
-            {
-                OnDataReceived(e.Data);
-            };
+                _bufferIdx += readCount;
+                ProcessReceivedData();
+            }
+        }
 
-            _serialProcess.BeginErrorReadLine();
-            _serialProcess.ErrorDataReceived += (s, e) =>
-            {
-                _logger.Error($"SerialTransport received error output: {e.Data}");
-            };
+        private void SerialPort_ErrorReceived(object sender, SerialErrorReceivedEventArgs e)
+        {
+            _logger.LogError("SerialPort_ErrorReceived event.");
+        }
 
-            _serialProcess.Exited += (s, e) =>
+        private Task ReadComPortAsync(CancellationToken token)
+        {
+            return Task.Run(() => 
             {
-                _serialProcess.Dispose();
-                if (!_stopping)
+                _logger.LogDebug("SerialTransport: ReadComPortAsync()");
+                try
                 {
-                    OutputMessage(new MessageData()
+                    while (!token.IsCancellationRequested)
                     {
-                        Destination = DataDestination.System,
-                        Action = Constants.ActionComAppCrash
-                    });
+                        byte b = (byte)_serialPort.ReadByte();                        
+                        _buffer[_bufferIdx++] = b;
+                        if (b == _commandDelimiter && !token.IsCancellationRequested)
+                        {
+                            ProcessReceivedData();
+                        }
+                    }
                 }
-            };
-        }
-
-        private string BuildArgs(SerialConfig cfg)
-        {
-            return $"{Constants.ArgComPort}{cfg.ComPort} " +
-                    $"{Constants.ArgBaudRate}{cfg.BaudRate} " +
-                    $"{Constants.ArgRebootBaudrate}{cfg.RebootMcu.BaudRate} " +
-                    $"{Constants.ArgRebootDtrPulseOnly}{cfg.RebootMcu.DtrPulseOnly} " +
-                    $"{Constants.ArgRebootDelay}{cfg.RebootMcu.Delay} " +
-                    $"{Constants.ArgRebootReconnectDelay}{cfg.RebootMcu.ReconnectDelay}";
-        }
-
-        public IMessageData Receive()
-        {
-            _dataReceivedEvent.WaitOne();
-            if (_messageData != null) return _messageData;
-            // Return empty dataset
-            return new MessageData();
-        }
-
-        public void Send(IMessageData command)
-        {
-            Send(new TransportData()
-            {
-                Destination = GetDestinationString(command.Destination),
-                Action = command.Action,
-                Content = command.Content
+                catch (OperationCanceledException) { }
+                _logger.LogDebug("SerialTransport: ReadComPortAsync() Done.");
             });
         }
 
-        private string GetDestinationString(DataDestination destination)
+        private void ProcessReceivedData()
         {
-            return destination switch 
+            while (true)
             {
-                DataDestination.System => Constants.DestinationSystem,
-                DataDestination.Mcu => Constants.DestinationMcu,
-                _ => throw new NotImplementedException($"Destination \"{destination}\" is not implemented.")
-            };
+                var delimiterIdx = Array.IndexOf(_buffer, (byte)_commandDelimiter, 0, _bufferIdx);
+                if (delimiterIdx > -1)
+                {
+                    //CommandDelimiter is in buffer
+                    string rcvStr = Encoding.ASCII.GetString(_buffer, 0, delimiterIdx);
+                    if (_bufferIdx - 1 > delimiterIdx)
+                    {
+                        Array.Copy(_buffer, delimiterIdx + 1, _buffer, 0, _bufferIdx - delimiterIdx - 1);
+                    }
+                    _bufferIdx -= delimiterIdx + 1;
+                    rcvStr = RemoveTechnicalInfo(rcvStr);
+                    OnMessageReceived(rcvStr);
+                }
+                else 
+                    return;
+            }
         }
 
-        public void Start()
+        private string RemoveTechnicalInfo(string rcvStr)
         {
-            Send(new TransportData()
-            {
-                Destination = Constants.DestinationSystem,
-                Action = Constants.ActionConnect,
-                Content = string.Empty
-            });
+            if (rcvStr.StartsWith("0 "))
+                return rcvStr.Substring("0 ".Length);
+            return rcvStr;
         }
+        
+        private void OnMessageReceived(string message)
+        {
+            _logger.LogDebug($"SerialTransport: OnMessageReceived(): {message}");
+            var evt = DataReceived;
+            evt?.Invoke(this, new TransportDataReceivedEventArgs(message));
+        }
+
+        public void Send(string command)
+        {
+            if(_serialPort.IsOpen)
+            {
+                byte[] buffToWrite = Encoding.ASCII.GetBytes($"0 {command}{_commandDelimiter}");
+                _serialPort.Write(buffToWrite, 0, buffToWrite.Length);
+            }
+        }
+
+        public bool Start()
+        {
+            _logger.LogDebug("SerialTransport: Start()");
+            bool result;
+            try
+            {
+                _serialPort.Open();
+                if(_serialPort.IsOpen)
+                {
+                    _readPortCancel = new CancellationTokenSource();
+                    _ = ReadComPortAsync(_readPortCancel.Token);
+                }
+            }
+            catch(Exception ex)
+            {
+                _logger.LogError("SerialTransport: Start(): Exception: {ex}", ex);
+            }
+            finally
+            {
+                _logger.LogDebug($"SerialTransport: Start(): Finally: IsConnected: {IsConnected}");
+                OnStateChanged(_serialPort.IsOpen ? TransportState.Connected : TransportState.NotConnected);
+                result = IsConnected;
+            }
+            return result;
+        }
+
+        private void OnStateChanged(TransportState newState)
+        {
+            var evt = StateChanged;
+            evt?.Invoke(this, new TransportStateChangedEventArgs(newState));
+        }
+
+        /*
+        private async Task SendDTRPulseNoConnect(int delayMillis)
+        {
+            _logger.Debug($"Sending DTR signal...");
+            _transport.SerialPort.DtrEnable = true;
+            await Task.Delay(delayMillis);
+            _transport.SerialPort.DtrEnable = false;
+            await Task.Delay(delayMillis);
+        }
+
+        private async Task<bool> SendDtrPulseWithConnect(int baudRate, int delayMillis)
+        {
+            _logger.Debug("Connecting with DTR enabled...");
+            _transport.CurrentSerialSettings.DtrEnable = true;
+            _transport.CurrentSerialSettings.BaudRate = baudRate;
+            if (_messenger.StartListening())
+            {
+                await Task.Delay(delayMillis);
+                _messenger.StopListening();
+                _transport.CurrentSerialSettings.BaudRate = _baudRate;
+                _transport.CurrentSerialSettings.DtrEnable = false;
+                await Task.Delay(delayMillis);
+                _logger.Debug("Done. DTR is disabled.");
+                return true;
+            }
+            _logger.Error("Messenger not started listening with DTR enabled.");
+            return false;
+        }
+
+        public async Task RebootMcu(bool DtrPulseOnly, int baudRate, int delayMillis)
+        {
+            _logger.Debug("RebootMcu() called.");
+            Disconnect();
+            if (DtrPulseOnly)
+                await SendDTRPulseNoConnect(delayMillis);
+            else
+                await SendDtrPulseWithConnect(baudRate, delayMillis);
+            Connect();
+        }
+        */
 
         public void Stop()
         {
-            _stopping = true;
-            Send(new TransportData()
-            {
-                Destination = Constants.DestinationSystem,
-                Action = Constants.ActionDisconnect,
-                Content = string.Empty
-            });
-        }
-
-        private void OutputMessage(MessageData? value)
-        {
-            _messageData = value;
-            _dataReceivedEvent.Set();
-        }
-
-        private void OnDataReceived(string dataStr)
-        {
-            TransportData? data = JsonConvert.DeserializeObject<TransportData?>(dataStr);
-
-            if (data == null)
-            {
-                _logger.Error($"Error deserializing IpcData from string: {dataStr}");
-                return;
-            }
-
-            if (data.Destination == Constants.DestinationLogger)
-            {
-                LogReceivedData(data);
-                return;
-            }
-
-            MessageData message = new MessageData()
-            {
-                Destination = data.Destination switch
-                {
-                    Constants.DestinationMcu => DataDestination.Mcu,
-                    Constants.DestinationSystem => DataDestination.System,
-                    _ => DataDestination.Unknown
-                }
-            };
-            if (message.Destination == DataDestination.Unknown)
-            {
-                _logger.Warning($"Destination '{data.Destination}' not implemented.");
-                return;
-            }
-            message.Action = data.Action;
-            message.Content = data.Content;
-            OutputMessage(message);
-        }
-
-        private void LogReceivedData(ITransportData data)
-        {
-            switch (data.Action)
-            {
-                case Constants.ActionLogDebug:
-                    _logger.Debug("nsuCom: " + data.Content);
-                    return;
-                case Constants.ActionLogInfo:
-                    _logger.Information("nsuCom: " + data.Content);
-                    return;
-                case Constants.ActionLogWarning:
-                    _logger.Warning("nsuCom: " + data.Content);
-                    return;
-                case Constants.ActionLogError:
-                    _logger.Error("nsuCom: " + data.Content);
-                    return;
-                case Constants.ActionLogFatal:
-                    _logger.Fatal("nsuCom: " + data.Content);
-                    return;
-                default:
-                    _logger.Warning($"nsuCom: Unknown log action. Destination: {data.Destination}, Action: {data.Action}, Content: {data.Content}");
-                    break;
-            }
-        }
-
-        public void Send(ITransportData data)
-        {
-            if (!IsConnected) return;
-
-            string dataStr = JsonConvert.SerializeObject(data, _jsonSettings);
-            _serialProcess?.StandardInput.WriteLine(dataStr);
-        }
-
-        public void SendToMcu(string data)
-        {
-            Send(new TransportData()
-            {
-                Destination = Constants.DestinationMcu,
-                Action = Constants.ActionData,
-                Content = data
-            });
+            _logger.LogDebug("SerialTransport: Stop()");
+            _readPortCancel?.Cancel();
+            _serialPort.Close();
         }
 
         public void Dispose()
         {
-            Stop();
-            Send(new TransportData()
-            {
-                Destination = DataDestination.System.ToString(),
-                Action = Constants.ActionQuit,
-                Content = string.Empty
-            });
+            _serialPort?.Dispose();
+            _readPortCancel?.Dispose();
         }
+
+        
     }
 }

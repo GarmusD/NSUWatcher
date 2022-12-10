@@ -2,7 +2,7 @@
 {
     public interface ICommandToMCU
     {
-        public string Value { get; }
-        public void Send();
+        string Value { get; }
+        void Send();
     }
 }

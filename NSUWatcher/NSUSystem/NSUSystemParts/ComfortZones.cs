@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
 using System.Linq;
-using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
+using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -18,45 +18,44 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private readonly List<ComfortZone> _comfZones = new List<ComfortZone>();
 
-        public ComfortZones(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.ComfortZones) { }
+        public ComfortZones(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.ComfortZones) { }
 
-        public ComfortZone? FindComfortZone(int idx)
+        public ComfortZone FindComfortZone(int idx)
         {
             return _comfZones.FirstOrDefault(x => x.ConfigPos == idx);
         }
 
-        public ComfortZone? FindComfortZone(string name)
+        public ComfortZone FindComfortZone(string name)
         {
             return _comfZones.FirstOrDefault(x => x.Name == name);
         }
 
-        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case IComfortZoneSnapshot snapshot:
                     ProcessActionSnapshot(snapshot);
-                    return;
+                    return true;
 
                 case IComfortZoneRoomTempInfo roomTempInfo:
                     ProcessCurrentRoomTemp(roomTempInfo);
-                    return;
+                    return true;
 
                 case IComfortZoneFloorTempInfo floorTempInfo:
                     ProcessCurrentFloorTemp(floorTempInfo);
-                    return;
+                    return true;
 
                 case IComfortZoneActuatorStatus actuatorStatus:
                     ProcessActuatorStatus(actuatorStatus);
-                    return;
+                    return true;
 
                 case IComfortZoneLowTempMode lowTempMode:
                     ProcessLowTempMode(lowTempMode);
-                    return;
+                    return true;
 
                 default:
-                    LogNotImplementedCommand(command);
-                    return;
+                    return false;
             }
         }
 
@@ -98,9 +97,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             };
         }
 
-        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 

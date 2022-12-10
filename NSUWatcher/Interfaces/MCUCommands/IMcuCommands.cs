@@ -2,7 +2,7 @@
 {
     public interface IMcuCommands
     {
-        public IToMcuCommands ToMcu { get; }
-        public IFromMcuMessages FromMcu { get; }
+        IToMcuCommands ToMcu { get; }
+        IFromMcuMessages FromMcu { get; }
     }
 }

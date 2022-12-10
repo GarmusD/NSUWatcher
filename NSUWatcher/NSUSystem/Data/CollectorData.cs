@@ -8,7 +8,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class CollectorData : ICollectorDataContract
     {
-        public int ConfigPos { get; set; }
+        public byte ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; } = string.Empty;
         public string CircPumpName { get; set; } = string.Empty;
@@ -17,8 +17,8 @@ namespace NSUWatcher.NSUSystem.Data
         public IThermoActuatorDataContract[] Actuators => _thermoActuatorData;
 
         private readonly ThermoActuatorData[] _thermoActuatorData = Enumerable
-            .Range(0, ICollectorDataContract.MAX_COLLECTOR_ACTUATORS)
-            .Select((n) => { return new ThermoActuatorData(n); })
+            .Range(0, Collector.MaxCollectorActuators)
+            .Select((n) => { return new ThermoActuatorData((byte)n); })
             .ToArray();
 
         public CollectorData()
@@ -44,13 +44,13 @@ namespace NSUWatcher.NSUSystem.Data
 
     public class ThermoActuatorData : IThermoActuatorDataContract
     {
-        public int Index { get; }
+        public byte Index { get; }
 
         public ActuatorType Type { get; set; }
         public int RelayChannel { get; set; }
         public bool? Opened { get; set; }
 
-        public ThermoActuatorData(int index)
+        public ThermoActuatorData(byte index)
         {
             Index = index;
         }

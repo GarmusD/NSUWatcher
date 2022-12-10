@@ -13,7 +13,7 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
             _cmdCenter = cmdCenter;
         }
 
-        public bool ProcessMessage(JObject message, out INetMessage? response)
+        public bool ProcessMessage(JObject message, out INetMessage response)
         {
             throw new System.NotImplementedException();
         }

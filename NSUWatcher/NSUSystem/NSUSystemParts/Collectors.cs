@@ -1,13 +1,13 @@
 ﻿using System.Linq;
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
-using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
+using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -17,11 +17,11 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         
         private readonly List<Collector> _collectors = new List<Collector>();
 
-        public Collectors(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.Collectors)
+        public Collectors(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.Collectors)
         {
         }
 
-        private Collector? FindCollector(string name)
+        private Collector FindCollector(string name)
         {
             return _collectors.FirstOrDefault(x => x.Name == name);
         }
@@ -31,21 +31,20 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         /// Entry point for processing a messages from the MCU.
         /// </summary>
         /// <param name="command">Message to process</param>
-        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case ICollectorSnapshot collectorSnapshot:
                     ProcessCollectorSnapshot(collectorSnapshot);
-                    return;
+                    return true;
 
                 case ICollectorInfo collectorInfo:
                     ProcessCollectorInfo(collectorInfo);
-                    return;
+                    return true;
 
                 default:
-                    LogNotImplementedCommand(command);
-                    break;
+                    return false;
             }
         }
 
@@ -70,9 +69,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         }
 
 
-        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 

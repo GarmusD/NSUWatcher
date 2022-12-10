@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
 using System.Linq;
-using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
+using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -18,28 +18,27 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         readonly List<TempTrigger> _triggers = new List<TempTrigger>();
 
-        public TempTriggers(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.TempTriggers) { }
+        public TempTriggers(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.TempTriggers) { }
 
         private TempTrigger FindTrigger(string name)
         {
             return _triggers.FirstOrDefault(x => x.Name == name);
         }
 
-        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case ITempTriggerSnapshot snapshot:
                     ProcessSnapshot(snapshot);
-                    return;
+                    return true;
 
                 case ITempTriggerInfo triggerInfo:
                     ProcessInfo(triggerInfo);
-                    return;
+                    return true;
 
                 default:
-                    LogNotImplementedCommand(command);
-                    break;
+                    return false;
             }
         }
 
@@ -48,7 +47,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             var trg = FindTrigger(triggerInfo.Name);
             if (trg != null)
             {
-                trg.Status = Enum.Parse<Status>(triggerInfo.Status, true);
+                trg.Status = (Status)Enum.Parse(typeof(Status), triggerInfo.Status, true);
             }
         }
 
@@ -60,9 +59,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             _triggers.Add(trg);
         }
 
-        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 

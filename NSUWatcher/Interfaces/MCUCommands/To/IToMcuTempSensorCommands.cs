@@ -2,6 +2,6 @@
 {
     public interface IToMcuTempSensorCommands
     {
-        public ICommandToMCU SetupTempSensor();
+        ICommandToMCU SetupTempSensor();
     }
 }

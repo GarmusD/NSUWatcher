@@ -3,15 +3,15 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using System;
-using NSUWatcher.Serilog;
+using NSUWatcher.Logger.Serilog;
 
 namespace NSUWatcher
 {
     public class NsuConsoleSink : ILogEventSink
     {
-        private readonly IFormatProvider? _formatProvider;
+        private readonly IFormatProvider _formatProvider;
 
-        public NsuConsoleSink(IFormatProvider? formatProvider)
+        public NsuConsoleSink(IFormatProvider formatProvider)
         {
             _formatProvider = formatProvider;
         }
@@ -19,7 +19,7 @@ namespace NSUWatcher
         public void Emit(LogEvent logEvent)
         {
             var message = logEvent.RenderMessage(_formatProvider);
-            NsuConsoleMessage.SetOutoutLine(message);
+            NsuConsoleMessage.SetOutputLine(message);
         }
     }
 
@@ -27,7 +27,7 @@ namespace NSUWatcher
     {
         public static LoggerConfiguration NsuConsole(
                   this LoggerSinkConfiguration loggerConfiguration,
-                  IFormatProvider? formatProvider = null)
+                  IFormatProvider formatProvider = null)
         {
             return loggerConfiguration.Sink(new NsuConsoleSink(formatProvider));
         }

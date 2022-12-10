@@ -6,14 +6,15 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public static class SystemFanChanges
     {
-        public static NetMessage? Message(ISystemFanDataContract dataContract, string property)
+        public static NetMessage Message(ISystemFanDataContract dataContract, string property)
         {
-            return property switch
+            switch (property)
             {
-                nameof(SystemFan.CurrentPWM) => new NetMessage(
-                    SystemFanPwmChanged.Create(dataContract.Name, dataContract.CurrentPWM)
-                    ),
-                _ => null
+                case nameof(SystemFan.CurrentPWM): 
+                    return new NetMessage(
+                        SystemFanPwmChanged.Create(dataContract.Name, dataContract.CurrentPWM)
+                    );
+                default: return null;
             };
         }
     }

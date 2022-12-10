@@ -3,6 +3,7 @@ using NSU.Shared;
 using NSU.Shared.DTO.ExtCommandContent;
 using NSU.Shared.Serializer;
 using NSUWatcher.CommandCenter;
+//using MySerializer = NSU.Shared.Serializer.NsuSerializer;
 
 namespace Tests.CmdCenter.ExtCommands
 {

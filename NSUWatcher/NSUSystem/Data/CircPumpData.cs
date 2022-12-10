@@ -7,7 +7,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class CircPumpData : ICircPumpDataContract
     {
-        public int ConfigPos { get; set; }
+        public byte ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; } = string.Empty;
         public string TempTriggerName { get; set; } = string.Empty;
@@ -35,7 +35,7 @@ namespace NSUWatcher.NSUSystem.Data
             Spd1Channel = snapshot.Speed1Ch;
             Spd2Channel = snapshot.Speed2Ch;
             Spd3Channel = snapshot.Speed3Ch;
-            Status = snapshot.Status == null ? Status.UNKNOWN : Enum.Parse<Status>(snapshot.Status, true);
+            Status = string.IsNullOrEmpty(snapshot.Status) ? Status.UNKNOWN : (Status)Enum.Parse(typeof(Status), snapshot.Status);
             OpenedValvesCount = snapshot.OpenedValvesCount.GetValueOrDefault();
         }
     }

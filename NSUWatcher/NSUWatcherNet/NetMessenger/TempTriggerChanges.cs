@@ -6,14 +6,15 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public static class TempTriggerChanges
     {
-        public static NetMessage? Message(ITempTriggerDataContract dataContract, string property)
+        public static NetMessage Message(ITempTriggerDataContract dataContract, string property)
         {
-            return property switch
+            switch (property)
             {
-                nameof(TempTrigger.Status) => new NetMessage(
-                    TempTriggerStatusChanged.Create(dataContract.Name, dataContract.Status.ToString())
-                    ),
-                _ => null
+                case nameof(TempTrigger.Status):
+                    return new NetMessage(
+                        TempTriggerStatusChanged.Create(dataContract.Name, dataContract.Status.ToString())
+                    );
+                default: return null;
             };
         }
     }

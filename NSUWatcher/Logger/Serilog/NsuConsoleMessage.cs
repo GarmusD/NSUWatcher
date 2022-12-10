@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 
-namespace NSUWatcher.Serilog
+namespace NSUWatcher.Logger.Serilog
 {
     public class NsuConsoleEventArgs : EventArgs
     {
@@ -15,9 +14,9 @@ namespace NSUWatcher.Serilog
 
     public static class NsuConsoleMessage
     {
-        public static event EventHandler<NsuConsoleEventArgs>? OutputReceived;
+        public static event EventHandler<NsuConsoleEventArgs> OutputReceived;
 
-        public static void SetOutoutLine(string line)
+        public static void SetOutputLine(string line)
         {
             OutputReceived?.Invoke(null, new NsuConsoleEventArgs(line));
         }

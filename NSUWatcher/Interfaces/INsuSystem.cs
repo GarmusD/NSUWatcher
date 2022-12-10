@@ -5,7 +5,7 @@ namespace NSUWatcher.Interfaces
 {
     public interface INsuSystem
     {
-        public event EventHandler<PropertyChangedEventArgs> StatusChanged;
+        event EventHandler<PropertyChangedEventArgs> StatusChanged;
     }
 /*    
     public enum ChangedProperty

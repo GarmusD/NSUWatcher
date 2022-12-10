@@ -5,6 +5,6 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public interface IMsgProcessor
     {
-        public bool ProcessMessage(JObject message, out INetMessage? response);
+        bool ProcessMessage(JObject message, out INetMessage response);
     }
 }

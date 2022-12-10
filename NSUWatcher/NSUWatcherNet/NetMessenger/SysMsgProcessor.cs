@@ -7,10 +7,10 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public class SysMsgProcessor : IMsgProcessor
     {
-        public bool ProcessMessage(JObject message, out INetMessage? response)
+        public bool ProcessMessage(JObject message, out INetMessage response)
         {
-            string target = (string)message[JKeys.Generic.Target]!;
-            string action = (string)message[JKeys.Generic.Action]!;
+            string target = (string)message[JKeys.Generic.Target];
+            string action = (string)message[JKeys.Generic.Action];
 
             if(target == JKeys.Syscmd.TargetName)
             {
