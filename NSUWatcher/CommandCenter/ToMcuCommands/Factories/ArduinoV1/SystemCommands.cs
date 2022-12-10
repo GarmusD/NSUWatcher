@@ -32,7 +32,7 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1
 
         public ICommandToMCU RequestSnapshot()
         {
-            return new CommandToMCU<EmptyCommand>( _defaultSendAction, new EmptyCommand(JKeys.Syscmd.SystemStatus));
+            return new CommandToMCU<EmptyCommand>( _defaultSendAction, new EmptyCommand(JKeys.Syscmd.Snapshot));
         }
 
         public ICommandToMCU SetTime(int year, int month, int day, int hour, int minute, int second)
