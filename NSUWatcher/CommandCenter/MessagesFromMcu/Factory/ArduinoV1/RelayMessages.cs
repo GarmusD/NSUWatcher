@@ -7,17 +7,19 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1
 {
     public class RelayMessages : IFromArduinoV1Base
     {
-        public IMessageFromMcu? TryFindMessage(JObject command)
+        public IMessageFromMcu TryFindMessage(JObject command)
         {
-            string target = (string)command[JKeys.Generic.Target]!;
-            if (target != JKeys.RelayModule.TargetName) return null;
+            string source = (string)command[JKeys.Generic.Source];
+            if (source != JKeys.RelayModule.TargetName) return null;
 
-            string action = (string)command[JKeys.Generic.Action]!;
-            return action switch
+            string action = (string)command[JKeys.Generic.Action];
+            switch (action)
             {
-                JKeys.Action.Snapshot => command.ToObject<RelaySnapshot>(),
-                JKeys.Action.Status => command.ToObject<RelayStatus>(),
-                _ => null
+                case JKeys.Action.Snapshot: return command.ToObject<RelaySnapshot>();
+                case JKeys.RelayModule.ActionOpenChannel: return command.ToObject<RelayChannelOpened>();
+                case JKeys.RelayModule.ActionCloseChannel: return command.ToObject<RelayChannelClosed>();
+                case JKeys.Generic.Status: return command.ToObject<RelayStatus>();
+                default: return null;
             };
         }
     }

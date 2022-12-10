@@ -7,29 +7,29 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1
 {
     public class WoodBoilerMessages : IFromArduinoV1Base
     {
-        public IMessageFromMcu? TryFindMessage(JObject command)
+        public IMessageFromMcu TryFindMessage(JObject command)
         {
-            string target = (string)command[JKeys.Generic.Target]!;
-            if (target != JKeys.WoodBoiler.TargetName) return null;
+            string source = (string)command[JKeys.Generic.Source];
+            if (source != JKeys.WoodBoiler.TargetName) return null;
 
-            string action = (string)command[JKeys.Generic.Action]!;
-            return action switch
+            string action = (string)command[JKeys.Generic.Action];
+            switch (action)
             {
-                JKeys.Action.Snapshot => command.ToObject<WoodBoilerSnapshot>(),
-                JKeys.Action.Info => GetCommandByContent(command),
-                _ => null
+                case JKeys.Action.Snapshot: return command.ToObject<WoodBoilerSnapshot>();
+                case JKeys.Action.Info: return GetCommandByContent(command);
+                default: return null;
             };
         }
 
-        private IMessageFromMcu? GetCommandByContent(JObject command)
+        private IMessageFromMcu GetCommandByContent(JObject command)
         {
-            string content = (string)command[JKeys.Generic.Content]!;
-            return content switch
+            string content = (string)command[JKeys.Generic.Content];
+            switch(content)
             {
-                JKeys.WoodBoiler.TargetName => command.ToObject<WoodBoilerInfo>(),
-                JKeys.WoodBoiler.LadomatStatus => command.ToObject<WoodBoilerLadomatInfo>(),
-                JKeys.WoodBoiler.ExhaustFanStatus => command.ToObject<WoodBoilerExhaustFanInfo>(),
-                _ => null
+                case JKeys.WoodBoiler.TargetName: return command.ToObject<WoodBoilerInfo>();
+                case JKeys.WoodBoiler.LadomatStatus: return command.ToObject<WoodBoilerLadomatInfo>();
+                case JKeys.WoodBoiler.ExhaustFanStatus: return command.ToObject<WoodBoilerExhaustFanInfo>();
+                default: return null;
             };
         }
     }

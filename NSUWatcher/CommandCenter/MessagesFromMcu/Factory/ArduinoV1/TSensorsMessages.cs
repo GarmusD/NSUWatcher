@@ -7,28 +7,28 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1
 {
     public class TSensorsMessages : IFromArduinoV1Base
     {
-        public IMessageFromMcu? TryFindMessage(JObject command)
+        public IMessageFromMcu TryFindMessage(JObject command)
         {
-            string target = (string)command[JKeys.Generic.Target]!;
-            if (target != JKeys.TempSensor.TargetName) return null;
+            string source = (string)command[JKeys.Generic.Source];
+            if (source != JKeys.TempSensor.TargetName) return null;
 
-            string action = (string)command[JKeys.Generic.Action]!;
-            return action switch
+            string action = (string)command[JKeys.Generic.Action];
+            switch (action)
             {
-                JKeys.Action.Snapshot => GetSnapshotByContent(command),
-                JKeys.Action.Info => command.ToObject<TSensorInfo>(),
-                _ => null
+                case JKeys.Action.Snapshot: return GetSnapshotByContent(command);
+                case JKeys.Action.Info: return command.ToObject<TSensorInfo>();
+                default: return null;
             };
         }
 
-        private IMessageFromMcu? GetSnapshotByContent(JObject command)
+        private IMessageFromMcu GetSnapshotByContent(JObject command)
         {
-            string content = (string)command[JKeys.Generic.Content]!;
-            return content switch 
-            { 
-                JKeys.TempSensor.ContentSystem => command.ToObject<TSensorSystemSnapshot>(),
-                JKeys.TempSensor.ContentConfig => command.ToObject<TSensorConfigSnapshot>(),
-                _ => null 
+            string content = (string)command[JKeys.Generic.Content];
+            switch (content) 
+            {
+                case JKeys.TempSensor.ContentSystem: return command.ToObject<TSensorSystemSnapshot>();
+                case JKeys.TempSensor.ContentConfig: return command.ToObject<TSensorConfigSnapshot>();
+                default: return null;
             };
         }
     }

@@ -7,17 +7,20 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1
 {
     public class CollectorMessages : IFromArduinoV1Base
     {
-        public IMessageFromMcu? TryFindMessage(JObject command)
+        public IMessageFromMcu TryFindMessage(JObject command)
         {
-            string target = (string)command[JKeys.Generic.Target]!;
-            if (target != JKeys.Collector.TargetName) return null;
+            string source = (string)command[JKeys.Generic.Source];
+            if (source != JKeys.Collector.TargetName) return null;
 
-            string action = (string)command[JKeys.Generic.Action]!;
-            return action switch
+            string action = (string)command[JKeys.Generic.Action];
+            switch(action)
             {
-                JKeys.Action.Snapshot => command.ToObject<CollectorSnapshot>(),
-                JKeys.Action.Info => command.ToObject<CollectorInfo>(),
-                _ => null
+                case JKeys.Action.Snapshot:
+                    return command.ToObject<CollectorSnapshot>();
+                case JKeys.Action.Info:
+                    return command.ToObject<CollectorInfo>();
+                default:
+                    return null;
             };
         }
     }

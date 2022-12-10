@@ -7,31 +7,31 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1
 {
     public class ComfortZoneMessages : IFromArduinoV1Base
     {
-        public IMessageFromMcu? TryFindMessage(JObject command)
+        public IMessageFromMcu TryFindMessage(JObject command)
         {
-            string target = (string)command[JKeys.Generic.Target]!;
-            if (target != JKeys.ComfortZone.TargetName) return null;
+            string source = (string)command[JKeys.Generic.Source];
+            if (source != JKeys.ComfortZone.TargetName) return null;
 
-            string action = (string)command[JKeys.Generic.Action]!;
+            string action = (string)command[JKeys.Generic.Action];
 
-            return action switch
+            switch (action)
             {
-                JKeys.Action.Snapshot => command.ToObject<ComfortZoneSnapshot>(),
-                JKeys.Action.Info => GetInfoByContent(command),
-                _ => null
+                case JKeys.Action.Snapshot: return command.ToObject<ComfortZoneSnapshot>();
+                case JKeys.Action.Info: return GetInfoByContent(command);
+                default: return null;
             };
         }
 
-        private static IMessageFromMcu? GetInfoByContent(JObject command)
+        private static IMessageFromMcu GetInfoByContent(JObject command)
         {
-            string content = (string)command[JKeys.Generic.Content]!;
-            return content switch
+            string content = (string)command[JKeys.Generic.Content];
+            switch (content)
             {
-                JKeys.ComfortZone.CurrentRoomTemp => command.ToObject<ComfortZoneRoomTempInfo>(),
-                JKeys.ComfortZone.CurrentFloorTemp => command.ToObject<ComfortZoneFloorTempInfo>(),
-                JKeys.ComfortZone.ActuatorOpened => command.ToObject<ComfortZoneActuatorStatus>(),
-                JKeys.ComfortZone.LowTempMode => command.ToObject<ComfortZoneLowTempMode>(),
-                _ => null
+                case JKeys.ComfortZone.CurrentRoomTemp: return command.ToObject<ComfortZoneRoomTempInfo>();
+                case JKeys.ComfortZone.CurrentFloorTemp: return command.ToObject<ComfortZoneFloorTempInfo>();
+                case JKeys.ComfortZone.ActuatorOpened: return command.ToObject<ComfortZoneActuatorStatus>();
+                case JKeys.ComfortZone.LowTempMode: return command.ToObject<ComfortZoneLowTempMode>();
+                default: return null;
             };
         }
     }

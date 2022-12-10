@@ -7,17 +7,17 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1
 {
     public class SystemFanCommands : IFromArduinoV1Base
     {
-        public IMessageFromMcu? TryFindMessage(JObject command)
+        public IMessageFromMcu TryFindMessage(JObject command)
         {
-            string target = (string)command[JKeys.Generic.Target]!;
-            if (target != JKeys.SystemFan.TargetName) return null;
+            string source = (string)command[JKeys.Generic.Source];
+            if (source != JKeys.SystemFan.TargetName) return null;
 
-            string action = (string)command[JKeys.Generic.Action]!;
-            return action switch
+            string action = (string)command[JKeys.Generic.Action];
+            switch (action)
             {
-                JKeys.Action.Snapshot => command.ToObject<SystemFanSnapshot>(),
-                JKeys.Action.Status => command.ToObject<SystemFanInfo>(),
-                _ => null
+                case JKeys.Action.Snapshot: return command.ToObject<SystemFanSnapshot>();
+                case JKeys.Action.Status: return command.ToObject<SystemFanInfo>();
+                default: return null;
             };
         }
     }
