@@ -1,28 +1,59 @@
-﻿using NSU.Shared.DataContracts;
+﻿using Newtonsoft.Json;
+using NSU.Shared;
 using NSUWatcher.Interfaces.MCUCommands.From;
 
 namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
 {
+#nullable enable
     public class WaterBoilerSnapshot : IWaterBoilerSnapshot
     {
-        public int ConfigPos { get; set; }
+        [JsonProperty(JKeys.Generic.ConfigPos)]
+        public byte ConfigPos { get; set; }
+        
+        [JsonProperty(JKeys.Generic.Enabled)]
         public bool Enabled { get; set; }
+        
+        [JsonProperty(JKeys.Generic.Name)]
         public string Name { get; set; } = string.Empty;
+        
+        [JsonProperty(JKeys.WaterBoiler.TempSensorName)]
         public string TempSensorName { get; set; } = string.Empty;
+        
+        [JsonProperty(JKeys.WaterBoiler.CircPumpName)]
         public string CircPumpName { get; set; } = string.Empty;
+        
+        [JsonProperty(JKeys.WaterBoiler.TempTriggerName)]
         public string TempTriggerName { get; set; } = string.Empty;
+        
+        [JsonProperty(JKeys.WaterBoiler.ElHeatingEnabled)]
         public bool ElHeatingEnabled { get; set; }
+        
+        [JsonProperty(JKeys.WaterBoiler.ElPowerChannel)]
         public int ElPowerChannel { get; set; }
+        
+        [JsonProperty(JKeys.WaterBoiler.PowerData)]
         public IElHeatingDataSnapshot[] ElHeatingData { get; set; } = new HeatingData[0];
-        public string Target { get; set; } = string.Empty;
-        public string? CommandID { get; set; }
+        
+        //[JsonProperty(JKeys.Generic.Source)]
+        //public string Source { get; set; } = string.Empty;
+        
+        //[JsonProperty(JKeys.Generic.CommandID)]
+        //public string? CommandID { get; set; }
     }
+#nullable disable
 
     public class HeatingData : IElHeatingDataSnapshot
     {
+        [JsonProperty(JKeys.WaterBoiler.PDStartHour)]
         public int StartHour { get; set; }
+        
+        [JsonProperty(JKeys.WaterBoiler.PDStartMin)]
         public int StartMinute { get; set; }
+        
+        [JsonProperty(JKeys.WaterBoiler.PDStopHour)]
         public int StopHour { get; set; }
+        
+        [JsonProperty(JKeys.WaterBoiler.PDStopMin)]
         public int StopMinute { get; set; }
     }
 }
