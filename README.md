@@ -18,7 +18,11 @@ Logs sensor data into MySql database.
 
 # CHANGES
 ### Initial release
+Basic functionality
+
+### 0.4.2
+NSUWatcherNet, log sensors data to MySql database.
 
 ### 0.5.1
-Upgrading project to .netFramework 4.8. .netCore cannot be used because software is running on linux 14.04 and some functionality requires newer system librarys.
+Upgrading project to .netFramework 4.8. .netCore cannot be used because the software runs on linux 14.04 and some functionality requires newer system libraries.
 Hosting environment is used if running as service.
