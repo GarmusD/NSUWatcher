@@ -1,160 +1,130 @@
 using System;
-using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
-using TransportDataContracts;
 using Microsoft.Extensions.Hosting;
 using NSUWatcher.Interfaces;
-using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.Extensions.Configuration;
-using NSUWatcher.Transport.Serial;
 using NSU.Shared.Serializer;
+using Timer = System.Timers.Timer;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NSUWatcher.CommandCenter
 {
     public class CmdCenter : ICmdCenter, IHostedService
     {
-        public event EventHandler<McuMessageReceivedEventArgs>? McuMessageReceived;
-        public event EventHandler<SystemMessageEventArgs>? SystemMessageReceived;
-        public event EventHandler<ExternalCommandEventArgs>? ExternalCommandReceived;
-        public event EventHandler<ManualCommandEventArgs>? ManualCommandReceived;
+        public event EventHandler<McuMessageReceivedEventArgs> McuMessageReceived;
+        public event EventHandler<SystemMessageEventArgs> SystemMessageReceived;
+        public event EventHandler<ExternalCommandEventArgs> ExternalCommandReceived;
+        public event EventHandler<ManualCommandEventArgs> ManualCommandReceived;
 
         // Properties
         public bool Running => _msgTransport != null && _msgTransport.IsConnected;
 
-        public IMessageTransport MessageTransport { get => _msgTransport; set => _msgTransport =value; }
+        public IMcuMessageTransport MessageTransport { get => _msgTransport; set => SetMessageTransport(value); }
+
         public IMcuCommands MCUCommands => _mcuCommands;
         public IExternalCommands ExternalCommands => _externalCommands;
 
         // Private fields
         private readonly ILogger _logger;
+        private readonly IConfiguration _config;
         private readonly MCUCommands _mcuCommands;
         private readonly ExternalCommands _externalCommands;
-        private IMessageTransport _msgTransport;
+        private IMcuMessageTransport _msgTransport = null;
         private readonly IHostApplicationLifetime _lifetime;
-        private CancellationTokenSource? _cts = null;
+        private readonly Timer _guardTimer;
 
-        public CmdCenter(IConfiguration config, IHostApplicationLifetime lifetime, ILogger logger)
+        public CmdCenter(IMcuMessageTransport transport, IConfiguration config, IHostApplicationLifetime lifetime, ILoggerFactory loggerFactory)
         {
-            _logger = logger.ForContext<CmdCenter>() ?? throw new ArgumentNullException(nameof(logger), "Instance of ILogger cannot be null.");
+            _logger = loggerFactory?.CreateLogger(nameof(CmdCenter)) ?? NullLoggerFactory.Instance.CreateLogger(nameof(CmdCenter));
+            _logger.LogDebug("Creating ...");
+            _config = config;
             _lifetime = lifetime;
 
-            _logger.Debug("Creating CmdCenter...");
+            MessageTransport = transport;
 
-            _logger.Debug("Creating default IMessageTransport - SerialTransport...");
-            _msgTransport = new SerialTransport(config, logger);
+            _logger.LogDebug("Creating MCUCommands.");
+            _mcuCommands = new MCUCommands(DefaultSendToMcuAction, loggerFactory);
 
-            _logger.Debug("Creating MCUCommands.");
-            _mcuCommands = new MCUCommands(DefaultSendToMcuAction, logger);
-
-            _logger.Debug("Creating ExternalCommands.");
+            _logger.LogDebug("Creating ExternalCommands.");
             _externalCommands = new ExternalCommands( new NsuSerializer() );
 
-            _logger.Debug("CmdCenter created.");
+            _guardTimer = new Timer(TimeSpan.FromSeconds(15).TotalMilliseconds);
+
+            _logger.LogTrace("Created.");
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
         {
-            _cts = new CancellationTokenSource();
-            _ = ReadTransportDataAsync(_cts.Token);
-            _msgTransport.Start();
+            _logger.LogTrace("StartAsync(). Do nothing.");
             return Task.CompletedTask;
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            _msgTransport.Stop();
-            _cts?.Cancel();
+            _logger.LogTrace("StopAsync(). Do nothing.");
             return Task.CompletedTask;
         }
 
-        private Task ReadTransportDataAsync(CancellationToken token)
+        private void SetMessageTransport(IMcuMessageTransport value)
         {
-            return Task.Run(() =>
+            if (_msgTransport != null)
             {
-                token.ThrowIfCancellationRequested();
-                try
-                {
-                    while (!token.IsCancellationRequested)
-                    {
-                        // This is a blocking call
-                        IMessageData data = _msgTransport.Receive();
-                        switch (data.Destination)
-                        {
-                            case DataDestination.Mcu:
-                                McuDataReceivedHandler(data);
-                                break;
-                            case DataDestination.System:
-                                SystemDataReceivedHandler(data);
-                                break;
-                            default:
-                                _logger.Warning($"ReadTransportDataAsync(): Destination \"{data.Destination}\" is not implemented.");
-                                break;
-                        }
-                    }
-                }
-                catch (OperationCanceledException) { }
-            });
+                _msgTransport.DataReceived -= MessageTransport_DataReceived;
+                _msgTransport.StateChanged -= MessageTransport_StateChanged;
+                _msgTransport.Dispose();
+            }
+            _msgTransport = value ?? throw new ArgumentNullException("MessageTransport value cannot be null.");
+            _msgTransport.DataReceived += MessageTransport_DataReceived;
+            _msgTransport.StateChanged += MessageTransport_StateChanged;
         }
-
-        private void McuDataReceivedHandler(IMessageData message)
+        
+        private void MessageTransport_DataReceived(object sender, TransportDataReceivedEventArgs e)
         {
-            string receivedLine = message.Content;
+            string receivedLine = e.Message;
 
             if (receivedLine.StartsWith("JSON:", StringComparison.Ordinal))
             {
                 ParseAndHandleReceivedMcuLine(receivedLine.Remove("JSON:"));
             }
+            else if (receivedLine.StartsWith("GUARD", StringComparison.Ordinal))
+            {
+                ResetGuardTimer();
+            }
             else if (receivedLine.StartsWith("DBG:", StringComparison.Ordinal))
             {
-                _logger.Debug("MCU Debug: " + receivedLine.Remove("DBG:"));
+                _logger.LogDebug("MCU Debug: " + receivedLine.Remove("DBG:"));
             }
-            else if (receivedLine.StartsWith("ERR:", StringComparison.Ordinal))
+            else if (receivedLine.StartsWith("ERROR:", StringComparison.Ordinal))
             {
-                _logger.Error("MCU Error: " + receivedLine.Remove("ERR:"));
+                _logger.LogError("MCU Error: " + receivedLine.Remove("ERROR:"));
             }
             else if (receivedLine.StartsWith("INFO:", StringComparison.Ordinal))
             {
-                _logger.Debug("MCU Info: " + receivedLine.Remove("INFO:"));
+                _logger.LogInformation("MCU Info: " + receivedLine.Remove("INFO:"));
             }
-            else _logger.Debug("MCU Unknown data: " + receivedLine);
+            else _logger.LogDebug("MCU Unknown data: " + receivedLine);
         }
 
         private void ParseAndHandleReceivedMcuLine(string receivedLine)
         {
             try
             {
+                _logger.LogDebug($"ParseAndHandleReceivedMcuLine(): {receivedLine}");
                 var cmd = _mcuCommands.FromMcu.Parse(receivedLine);
                 if (cmd == null)
                 {
-                    _logger.Warning($"ParseAndHandleReceivedLine(): Unsupported command received: '{receivedLine}'.");
+                    _logger.LogWarning($"ParseAndHandleReceivedLine(): Unsupported command received: '{receivedLine}'.");
                     return;
                 }
                 OnMcuMessageReceived(cmd);
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, $"ParseAndHandleReceivedLine(): '{receivedLine}' Exception:");
+                _logger.LogError(ex, $"ParseAndHandleReceivedLine(): '{receivedLine}' Exception:");
             }
-        }
-
-        private void SystemDataReceivedHandler(IMessageData message)
-        {
-            SysMessage sysMessage = message.Action switch
-            {
-                Constants.ActionConnected => SysMessage.TransportConnected,
-                Constants.ActionConnectFailed => SysMessage.TransportConnectFailed,
-                Constants.ActionDisconnected => SysMessage.TransportDisconnected,
-                Constants.ActionMcuHalted => SysMessage.McuCrashed,
-                Constants.ActionComAppCrash => SysMessage.TransportAppCrashed,
-                _ => throw new NotImplementedException($"SystemDataReceivedHandler(): Action \"{message.Action}\" is not implemented.")
-            };
-
-            var evt = SystemMessageReceived;
-            evt?.Invoke(this, new SystemMessageEventArgs(sysMessage));
-
-            if (sysMessage == SysMessage.TransportAppCrashed) 
-                _lifetime.StopApplication();
         }
 
         private void OnMcuMessageReceived(IMessageFromMcu data)
@@ -162,12 +132,21 @@ namespace NSUWatcher.CommandCenter
             var evt = McuMessageReceived;
             evt?.Invoke(this, new McuMessageReceivedEventArgs(data));
         }
-
-        /*private void OnExternalCommandReceived(IExternalCommand command, INsuUser nsuUser, Action<IExternalCommandResult, object> onCommandResult, object context)
+        
+        private void MessageTransport_StateChanged(object sender, TransportStateChangedEventArgs e)
         {
-            var evt = ExternalCommandReceived;
-            evt?.Invoke(this, new ExternalCommandEventArgs(command, nsuUser, onCommandResult, context));
-        }*/
+            _logger.LogDebug($"MessageTransport_StateChanged: {e.State}");
+            var sysMessage = e.State switch
+            {
+                TransportState.Connected => SysMessage.TransportConnected,
+                TransportState.NotConnected => SysMessage.TransportConnectFailed,
+                TransportState.Disconnected => SysMessage.TransportDisconnected,
+                TransportState.McuHalted => SysMessage.McuCrashed,
+                _ => throw new NotImplementedException($"SystemDataReceivedHandler(): Action \"{e.State}\" is not implemented."),
+            };
+            var evt = SystemMessageReceived;
+            evt?.Invoke(this, new SystemMessageEventArgs(sysMessage));
+        }
 
         private void OnManualCommandReceived(string command)
         {
@@ -179,31 +158,21 @@ namespace NSUWatcher.CommandCenter
         public void SendToMCU(Func<IToMcuCommands, ICommandToMCU> getCmd)
         {
             ICommandToMCU cmdToMcu = getCmd(_mcuCommands.ToMcu);
-            SendToArduino(cmdToMcu.Value);
+            SendToMcu(cmdToMcu.Value);
         }
 
         private void DefaultSendToMcuAction(string command)
         {
-            SendToArduino(command);
+            SendToMcu(command);
         }
 
-        private void SendToArduino(string cmd)
+        private void SendToMcu(string cmd)
         {
-            _logger.Debug($"SendToArduino(): cmd: '{cmd}'");
-            _msgTransport.Send(new MessageData() 
-            {
-                Destination = DataDestination.Mcu,
-                Action = string.Empty,
-                Content = cmd,
-            });
+            _logger.LogDebug($"SendToArduino(): cmd: '{cmd}'");
+            _msgTransport?.Send(cmd);
         }
 
-        /*public void ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, Action<IExternalCommandResult, object> onCommandResult, object context)
-        {
-            OnExternalCommandReceived(command, nsuUser, onCommandResult, context);
-        }*/
-
-        public IExternalCommandResult? ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, object? context = null)
+        public IExternalCommandResult ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, object context = null)
         {
             ExternalCommandEventArgs args = new ExternalCommandEventArgs(command, nsuUser, context);
             ExternalCommandReceived?.Invoke(this, args);
@@ -215,9 +184,16 @@ namespace NSUWatcher.CommandCenter
             OnManualCommandReceived(command);
         }
 
+        public void ResetGuardTimer()
+        {
+            _guardTimer.Enabled = false;
+            _guardTimer.Enabled = true;
+        }
+
         public void Dispose()
         {
             _msgTransport.Dispose();
+            _guardTimer.Dispose();
         }
     }
 

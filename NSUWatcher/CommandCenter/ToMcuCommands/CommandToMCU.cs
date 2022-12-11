@@ -11,7 +11,7 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands
 
         public CommandToMCU(Action<string> sendAction, T command)
         {
-            _command = command ?? throw new ArgumentNullException(nameof(command), "MCU Command cannot be null.");
+            _command = command ?? throw new ArgumentNullException("MCU Command cannot be null.");
             _sendAction = sendAction ?? throw new ArgumentNullException(nameof(sendAction));
         }
 

@@ -1,8 +1,8 @@
 ﻿using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.CommandCenter.MessagesFromMcu.Factories;
 using NSUWatcher.CommandCenter.ToMcuCommands.Factories;
-using Serilog;
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.CommandCenter
 {
@@ -14,9 +14,9 @@ namespace NSUWatcher.CommandCenter
         private IFromMcuMessages _messagesFromMcu;
         private IToMcuCommands _toMcuCommands;
 
-        public MCUCommands(Action<string> sendAction, ILogger logger)
+        public MCUCommands(Action<string> sendAction, ILoggerFactory loggerFactory)
         {
-            _messagesFromMcu = MessageFromMcuFactories.GetDefault(logger);
+            _messagesFromMcu = MessageFromMcuFactories.GetDefault(loggerFactory);
             _toMcuCommands = ToMcuCommandFactories.GetDefault(sendAction);
         }
         
