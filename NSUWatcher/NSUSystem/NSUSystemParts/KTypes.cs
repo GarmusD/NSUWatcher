@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
 using System.Linq;
-using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
+using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -18,28 +18,27 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override string[] SupportedTargets => new string[] { JKeys.KType.TargetName };
 
-        public KTypes(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.KTypes) { }
+        public KTypes(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.KTypes) { }
 
-        public KType? FindKType(string name)
+        public KType FindKType(string name)
         {
             return _ktypes.FirstOrDefault(x => x.Name == name);
         }
 
-        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case IKTypeSnapshot snapshot:
                     ProcessActionSnapshot(snapshot);
-                    return;
+                    return true;
 
                 case IKTypeInfo kTypeInfo:
                     ProcessActionInfo(kTypeInfo);
-                    return;
+                    return true;
 
                 default:
-                    LogNotImplementedCommand(command);
-                    break;
+                    return false;
             }
         }      
 
@@ -57,9 +56,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             if (ktp != null) ktp.Temperature = Convert.ToInt32(kTypeInfo.Value);
         }
 
-        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 

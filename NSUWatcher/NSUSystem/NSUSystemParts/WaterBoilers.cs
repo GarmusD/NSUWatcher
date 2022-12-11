@@ -1,13 +1,12 @@
 ﻿using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
-using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.NSUSystem.Data;
 using NSUWatcher.Interfaces;
-using System;
 using NSU.Shared;
 using NSU.Shared.Serializer;
+using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -17,9 +16,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         
         private readonly List<WaterBoiler> _boilers = new List<WaterBoiler>();
 
-        public WaterBoilers(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.WaterBoilers) { }
+        public WaterBoilers(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.WaterBoilers) { }
 
-        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
@@ -28,16 +27,16 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     var wb = new WaterBoiler(dataContract);
                     wb.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.WaterBoilers));
                     _boilers.Add(wb);
-                    return;
+                    return true;
 
                 default:
-                    break;
+                    return false;
             }
         }
 
-        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Timers;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NSU.Shared;
@@ -11,7 +12,6 @@ using NSU.Shared.DTO.ExtCommandContent;
 using NSU.Shared.Serializer;
 using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.MCUCommands;
-using Serilog;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -30,13 +30,13 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         public override string[] SupportedTargets => new string[] { JKeys.BinUploader.TargetName };
 
         private string BinFilePath => Path.Combine("/tmp", BinFile);
-        private FileStream? _binFile = null;
-        private Process? _process = null;
+        private FileStream _binFile = null;
+        private Process _process = null;
         private Stage _stage = Stage.None;
         private readonly Timer _retryTimer;
         private int _retryCount = 0;
 
-        public BinUploader(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.BinUploader)
+        public BinUploader(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.BinUploader)
         {
             _nsuSys = sys;
             _retryTimer = new Timer(3000)
@@ -50,7 +50,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             if (_stage == Stage.Write)
             {
-                _logger.Debug("Flash retry timer elapsed.");
+                _logger.LogDebug("Flash retry timer elapsed.");
                 StartFlashProcess();
             }
         }
@@ -60,12 +60,13 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             // Nothing to do here
         }
 
-        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
         {
             // Nothing to do here
+            return false;
         }
 
-        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
             ExtCommandResult result;
             try
@@ -92,7 +93,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         break;
                     default:
                         string msg = $"Action '{command.Action}' is not implemented.";
-                        _logger.Warning(msg);
+                        _logger.LogWarning(msg);
                         result = ExtCommandResult.Failure(JKeys.BinUploader.TargetName, command.Action, msg);
                         break;
                 }
@@ -132,14 +133,14 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             else
             {
                 //Report error
-                _logger.Error($"Wrogn operation stage. Required: 'Upload', Current: '{_stage}'");
+                _logger.LogError($"Wrogn operation stage. Required: 'Upload', Current: '{_stage}'");
                 return ExtCommandResult.Failure(JKeys.BinUploader.TargetName, JKeys.BinUploader.Data, $"Wrogn operation stage. Required: 'Upload', Current: '{_stage}'");
             }
         }
 
         private ExtCommandResult CleanupAndFail(string action, string errorMessage)
         {
-            _logger.Error($"BinUploader failed with message: '{errorMessage}'.");
+            _logger.LogError($"BinUploader failed with message: '{errorMessage}'.");
             CleanUp();
             return ExtCommandResult.Failure(JKeys.BinUploader.TargetName, action, errorMessage);
         }
@@ -148,12 +149,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             if (_stage == Stage.Upload)
             {
-                _binFile!.Flush(true);
-                _binFile!.Position = 0;
+                _binFile.Flush(true);
+                _binFile.Position = 0;
 
                 //Compute hash
                 SHA256Managed sha = new SHA256Managed();
-                var hash = BitConverter.ToString(sha.ComputeHash(_binFile!)).Replace("-", string.Empty);
+                var hash = BitConverter.ToString(sha.ComputeHash(_binFile)).Replace("-", string.Empty);
 
                 _binFile.Dispose();
                 _binFile = null;
@@ -179,7 +180,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     return CleanupAndFail(JKeys.BinUploader.StartUpload, ex.Message);
                 }
             }
-            _logger.Debug("Another user is flashing???");
+            _logger.LogDebug("Another user is flashing???");
             return ExtCommandResult.Failure(JKeys.BinUploader.TargetName, JKeys.BinUploader.DataDone, $"Wrogn operation stage. Required: 'None', Current: '{_stage}'");
         }
 
@@ -210,7 +211,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             try
             {
                 _stage = Stage.Write;
-                _logger.Debug("StartFlashProcess()");
+                _logger.LogDebug("StartFlashProcess()");
 
                 ProcessStartInfo psi = new ProcessStartInfo(_nsuSys.Config.Bossac?.Cmd)
                 {
@@ -221,7 +222,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     CreateNoWindow = true
                 };
 
-                _logger.Debug($"Starting '{psi.FileName}' with arguments '{psi.Arguments}'");
+                _logger.LogDebug($"Starting '{psi.FileName}' with arguments '{psi.Arguments}'");
                 ReportInfo($"Starting: {psi.FileName}");
                 ReportInfo($"Arguments: {psi.Arguments}");
 
@@ -263,7 +264,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 if (input.StartsWith("read")) return;
                 if (input.StartsWith("go")) return;
 
-                _logger.Debug("bossac: " + input);
+                _logger.LogDebug("bossac: " + input);
                 if (input.StartsWith("Write") && input.Contains("to flash"))
                 {
                     _stage = Stage.Write;
@@ -285,30 +286,30 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        private void HandlePrcExited(object? sender, EventArgs e)
+        private void HandlePrcExited(object sender, EventArgs e)
         {
-            _logger.Debug("HandlePrcExited() exit code: " + _process!.ExitCode.ToString());
-            int exitCode = _process!.ExitCode;
+            _logger.LogDebug("HandlePrcExited() exit code: " + _process.ExitCode.ToString());
+            int exitCode = _process.ExitCode;
             int c = 0;
             while (!_process.HasExited && c++ < 15)
             {
-                _logger.Debug("!prc.HasExited: Sleeping...");
+                _logger.LogDebug("!prc.HasExited: Sleeping...");
                 System.Threading.Thread.Sleep(250);
             }
 
             if (!_process.HasExited)
             {
-                _logger.Debug("Still !prc.HasExited: Killing...");
+                _logger.LogDebug("Still !prc.HasExited: Killing...");
                 _process.Kill();
             }
 
-            _logger.Debug("prc.Close();");
+            _logger.LogDebug("prc.Close();");
             _process.Close();
             _process.Dispose();
             _process = null;
             if (exitCode == 0)
             {
-                _logger.Debug("Starting CmdCenter...");
+                _logger.LogDebug("Starting CmdCenter...");
                 ReportFinish();
             }
             else
@@ -322,7 +323,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     [JKeys.Generic.ErrCode] = JKeys.ErrCodes.BinUploader.BossacError,
                     [JKeys.Generic.Value] = exitCode
                 };
-                _logger.Error($"Bossac exit code - {exitCode}");
+                _logger.LogError($"Bossac exit code - {exitCode}");
                 ///SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
 
                 //Send info about retry
@@ -339,7 +340,8 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         private void FlashStarted()
         {
             _stage = Stage.Write;
-            _logger.Debug("Flash Started....");
+            _logger.LogDebug("Flash Started....");
+            //TODO Report FlashStarted
             JObject jo = new JObject
             {
                 [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
@@ -351,6 +353,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         private void VerifyStarted()
         {
             _stage = Stage.Verify;
+            //TODO Report VerifyStarted
             JObject jo = new JObject
             {
                 [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
@@ -367,6 +370,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
             if (int.TryParse(result, out int res))
             {
+                //TODO Report Progress
                 JObject jo = new JObject
                 {
                     [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
@@ -379,6 +383,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private void ReportInfo(string input)
         {
+            //TODO Report Info
             JObject jo = new JObject
             {
                 [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,
@@ -392,6 +397,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         private void ReportFinish()
         {
             _stage = Stage.None;
+            //TODO Report Finish
             JObject jo = new JObject
             {
                 [JKeys.Generic.Target] = JKeys.BinUploader.TargetName,

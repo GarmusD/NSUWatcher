@@ -1,4 +1,5 @@
 ﻿using System;
+using Microsoft.Extensions.Logging;
 using NSU.Shared;
 using NSU.Shared.DTO.ExtCommandContent;
 using NSU.Shared.NSUSystemPart;
@@ -6,7 +7,6 @@ using NSU.Shared.Serializer;
 using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Logger.Serilog;
-using Serilog;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -16,7 +16,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private readonly ConsolePart _console = new ConsolePart();
 
-        public Console(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.Console)
+        public Console(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.Console)
         {
             NsuConsoleMessage.OutputReceived += (s, e) =>
             {
@@ -30,9 +30,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             };
         }
 
-        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
         {
-            _logger.Warning($"Console Part does not support messages from MCU [{command.GetType().Name}].");
+            return false;
         }
 
         public override void Clear()
@@ -40,7 +40,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             
         }
 
-        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
             switch(command.Action)
             {

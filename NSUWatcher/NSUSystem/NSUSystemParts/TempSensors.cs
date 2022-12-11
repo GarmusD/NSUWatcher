@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using NSU.Shared.NSUSystemPart;
 using System.Collections;
 using System.Linq;
-using Serilog;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
+using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -20,7 +20,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         private readonly List<TempSensor> _sensors = new List<TempSensor>();
         private readonly BitArray _configIDs = new BitArray(PartConsts.MAX_TEMP_SENSORS);
 
-        public TempSensors(NsuSystem sys, ILogger logger, INsuSerializer serializer) : base(sys, logger, serializer, PartType.TSensors) {}
+        public TempSensors(NsuSystem sys, ILoggerFactory loggerFactory, INsuSerializer serializer) : base(sys, loggerFactory, serializer, PartType.TSensors) {}
 
         public void AddSensor(TempSensor value)
         {
@@ -32,12 +32,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             {
                 // The code should not be reached here.
                 // If this happens - something wrong with hardware.
-                _logger.Error($"Too much TempSensors online! Count exeeds limit of {PartConsts.MAX_TEMP_SENSORS} sensors.");
+                _logger.LogError($"Too much TempSensors online! Count exeeds limit of {PartConsts.MAX_TEMP_SENSORS} sensors.");
                 throw new IndexOutOfRangeException();
             }
         }
 
-        public TempSensor? FindSensor(byte[] addr)
+        public TempSensor FindSensor(byte[] addr)
         {
             return _sensors.Find(x => x.CompareAddr(addr));
         }
@@ -47,9 +47,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             return !addr.All(x => x == 0);
         }
 
-        private int GetFirstFreeConfigID()
+        private byte GetFirstFreeConfigID()
         {
-            for (int i = 0; i < _configIDs.Count; i++)
+            for (byte i = 0; i < _configIDs.Count; i++)
                 if (!_configIDs[i])
                     return i;
             return NSUPartBase.INVALID_VALUE;
@@ -66,39 +66,38 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             var invCfgPosList = _sensors.FindAll(x => (x.ConfigPos == NSUPartBase.INVALID_VALUE && !TempSensor.IsAddressNull(x))).ToList();
             foreach (var sensor in invCfgPosList)
             {
-                int freePos = GetFirstFreeConfigID();
+                byte freePos = GetFirstFreeConfigID();
                 if (freePos != NSUPartBase.INVALID_VALUE)
                 {
                     sensor.ConfigPos = freePos;
                     _configIDs[freePos] = true;
-                    _logger.Error($"Sensor '{TempSensor.AddrToString(sensor.SensorID)}' with invalid ConfigPos founded. New ConfigPos is {freePos}.");
+                    _logger.LogError($"Sensor '{TempSensor.AddrToString(sensor.SensorID)}' with invalid ConfigPos founded. New ConfigPos is {freePos}.");
                 }
                 else
                 {
-                    _logger.Error($"No more free indexes for config is left. Cannot assign ConfigPos to a sensor '{TempSensor.AddrToString(sensor.SensorID)}'");
+                    _logger.LogError($"No more free indexes for config is left. Cannot assign ConfigPos to a sensor '{TempSensor.AddrToString(sensor.SensorID)}'");
                 }
             }
         }
 
-        public override void ProcessCommandFromMcu(IMessageFromMcu command)
+        public override bool ProcessCommandFromMcu(IMessageFromMcu command)
         {
             switch (command)
             {
                 case ITSensorSystemSnapshot systemSnapshot:
                     ProcessSystemSnapshot(systemSnapshot);
-                    return;
+                    return true;
 
                 case ITSensorConfigSnapshot configSnapshot:
                     ProcessConfigSnapshot(configSnapshot);
-                    return;
+                    return true;
                 
                 case ITSensorInfo tSensorInfo:
                     ProcessInfo(tSensorInfo);
-                    return;
+                    return true;
 
                 default:
-                    LogNotImplementedCommand(command);
-                    break;
+                    return false;
             }
         }
 
@@ -112,6 +111,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             };
             ts.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
             AddSensor(ts);
+            ts.PropertyChanged += (s, e) => { OnPropertyChanged(s as TempSensor, e.PropertyName); };
         }
 
         private void ProcessConfigSnapshot(ITSensorConfigSnapshot configSnapshot)
@@ -146,9 +146,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.Warning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
 
