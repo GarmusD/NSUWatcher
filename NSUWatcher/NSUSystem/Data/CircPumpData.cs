@@ -7,7 +7,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class CircPumpData : ICircPumpDataContract
     {
-        public int ConfigPos { get; set; }
+        public byte ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; } = string.Empty;
         public string TempTriggerName { get; set; } = string.Empty;
