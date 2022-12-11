@@ -28,7 +28,4 @@
 
   <Import Project="..\..\NSUShared\NSUShared.projitems" Label="Shared" />
 
-  <Import Project="..\TransportDataContracts\TransportDataContracts.projitems" Label="Shared" />
-
-
 </Project>
