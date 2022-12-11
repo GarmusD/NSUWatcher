@@ -32,7 +32,7 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         public string TempTriggerName { get; set; } = string.Empty;
         
         [JsonProperty(JKeys.Generic.Status)]
-        public string Status { get; set; } = string.Empty;
+        public string? Status { get; set; }
         
         [JsonProperty(JKeys.CircPump.CurrentSpeed)]
         public int? CurrentSpeed { get; set; }
