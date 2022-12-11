@@ -7,7 +7,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class WoodBoilerData : IWoodBoilerDataContract
     {
-        public int ConfigPos { get; set; }
+        public byte ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; } = string.Empty;
         public string TSensorName { get; set; } = string.Empty;

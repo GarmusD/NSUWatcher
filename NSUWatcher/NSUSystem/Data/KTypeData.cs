@@ -5,7 +5,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class KTypeData : IKTypeDataContract
     {
-        public int ConfigPos { get; set; }
+        public byte ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; }
         public int Interval { get; set; }

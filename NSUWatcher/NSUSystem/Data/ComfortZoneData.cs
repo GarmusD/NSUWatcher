@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using NSU.Shared.DataContracts;
 using NSUWatcher.Interfaces.MCUCommands.From;
 
@@ -9,7 +5,7 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class ComfortZoneData : IComfortZoneDataContract
     {
-        public int ConfigPos { get; set; }
+        public byte ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; }
         public string Title { get; set; }

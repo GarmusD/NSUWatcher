@@ -7,9 +7,9 @@ namespace NSUWatcher.NSUSystem.Data
 {
     public class SwitchData : ISwitchDataContract
     {
+        public byte ConfigPos { get; set; }
         public bool Enabled { get; set; }
         public string Name { get; set; }
-        public int ConfigPos { get; set; }
         public string Dependancy { get; set; }
         public Status Status { get; set; }
         public Status OnDependancyStatus { get; set; }
