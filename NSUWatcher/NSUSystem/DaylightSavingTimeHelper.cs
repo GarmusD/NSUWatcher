@@ -1,4 +1,4 @@
-﻿using Serilog;
+﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Timers;
 
@@ -6,20 +6,20 @@ namespace NSUWatcher.NSUSystem
 {
     public class DaylightSavingTimeHelper : IDisposable
     {
-        public event EventHandler<EventArgs>? DaylightTimeChanged;
+        public event EventHandler<EventArgs> DaylightTimeChanged;
         public bool TimeIsOk => CheckTimeIsOk();
 
 
         private readonly ILogger _logger;
         private readonly Timer _timer;
-        private DateTime _lastTime;
+        private DateTime _lastTime = DateTime.Now;
         private bool _timeIsOk = false;
 
 
         public DaylightSavingTimeHelper(ILogger logger, bool autoStart = true)
         {
-            _logger = logger.ForContext<DaylightSavingTimeHelper>() ?? throw new ArgumentNullException(nameof(logger), "Instance of ILogger cannot be null.");
-            _timer = new Timer(5000);
+            _logger = logger;//.ForContext<DaylightSavingTimeHelper>() ?? throw new ArgumentNullException(nameof(logger), "Instance of ILogger cannot be null.");
+            _timer = new Timer(TimeSpan.FromSeconds(5).TotalMilliseconds);
             _timer.Elapsed += Timer_Elapsed;
             if (autoStart) Start();
         }
@@ -31,11 +31,12 @@ namespace NSUWatcher.NSUSystem
                 TimeSpan diff;
                 if ((diff = DateTime.Now - _lastTime).TotalSeconds > 15)
                 {                    
-                    _logger.Debug($"DST change detected. From {_lastTime}, to {DateTime.Now}");
+                    _logger.LogDebug($"DST change detected. From {_lastTime}, to {DateTime.Now}");
                     _lastTime = DateTime.Now;
                     var evt = DaylightTimeChanged;
                     evt?.Invoke(this, EventArgs.Empty);
                 }
+                _lastTime = DateTime.Now;
             }
         }
 
