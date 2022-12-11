@@ -32,13 +32,19 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         public string TempTriggerName { get; set; } = string.Empty;
         
         [JsonProperty(JKeys.Generic.Status)]
-        public string? Status { get; set; }
+        public string Status { get; set; } = string.Empty;
         
         [JsonProperty(JKeys.CircPump.CurrentSpeed)]
         public int? CurrentSpeed { get; set; }
         
         [JsonProperty(JKeys.CircPump.ValvesOpened)]
         public int? OpenedValvesCount { get; set; }
+        
+        //[JsonProperty(JKeys.Generic.Source)]
+        //public string Source { get; set; } = string.Empty;
+        
+        //[JsonProperty(JKeys.Generic.CommandID)]
+        //public string? CommandID { get; set; }
     }
 #nullable disable
 }

@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using NSU.Shared;
+using NSU.Shared.NSUSystemPart;
 using NSUWatcher.Interfaces.MCUCommands.From;
 
 namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
@@ -18,6 +19,12 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         
         [JsonProperty(JKeys.WoodBoiler.TemperatureStatus)]
         public string TempStatus { get; set; } = string.Empty;
+        
+        //[JsonProperty(JKeys.Generic.Source)]
+        //public string Source { get; set; } = string.Empty;
+        
+        //[JsonProperty(JKeys.Generic.CommandID)]
+        //public string? CommandID { get; set; }
     }
 #nullable disable
 }

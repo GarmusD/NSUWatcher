@@ -21,6 +21,12 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         
         [JsonProperty(JKeys.Generic.Value, Required = Required.AllowNull)]
         public int? Temperature { get; set; }
+        
+        //[JsonProperty(JKeys.Generic.Source)]
+        //public string Source { get; set; } = string.Empty;
+        
+        //[JsonProperty(JKeys.Generic.CommandID)]
+        //public string? CommandID { get; set; }
     }
 #nullable disable
 }
