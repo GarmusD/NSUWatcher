@@ -298,7 +298,6 @@ namespace NSUWatcher
 
         private static void RunAsCLI(IConfigurationRoot config, Serilog.ILogger logger)
         {
-            bool isDevelopmentEnv = true;
             try
             {
                 global::NSUWatcher.Logger.LoggerFactory.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
@@ -311,9 +310,6 @@ namespace NSUWatcher
                 host.Start();
                 
                 bool done = false;
-
-                var env = host.Services.GetRequiredService<IHostEnvironment>();
-                isDevelopmentEnv = env.IsDevelopment();
 
                 var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
                 var cmdCenter = (ICmdCenter)host.Services.GetRequiredService(typeof(ICmdCenter));
@@ -344,7 +340,8 @@ namespace NSUWatcher
             {
                 logger.Fatal("NSUWatcher CRASH!!!! {ExMessage}", ex);
             }
-            if (isDevelopmentEnv)
+
+            if (System.Diagnostics.Debugger.IsAttached)
             {
                 Console.WriteLine("Press enter to exit...");
                 Console.ReadLine();
