@@ -1,6 +1,5 @@
 ﻿using System;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 using NSUWatcher.Interfaces.MCUCommands;
 
 namespace NSUWatcher.CommandCenter.ToMcuCommands
