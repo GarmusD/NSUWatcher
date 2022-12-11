@@ -5,11 +5,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Linq;
-using Serilog;
 using Microsoft.Extensions.Configuration;
 using NSUWatcher.Interfaces;
 using NSUWatcher.NSUWatcherNet.NetMessenger;
-using NSU.Shared.NSUNet;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NSUWatcher.NSUWatcherNet
 {
@@ -19,90 +19,84 @@ namespace NSUWatcher.NSUWatcherNet
     public partial class NetServer
     {
         
-
+        //TODO Fix events
         public delegate void ClientConnectedEventHandler(NetClientData clientData);
         public delegate void ClientDisconnectedEventHandler(NetClientData clientData);
 
-        public event ClientConnectedEventHandler? ClientConnected;
-        public event ClientDisconnectedEventHandler? ClientDisconnected;
+        public event ClientConnectedEventHandler ClientConnected;
+        public event ClientDisconnectedEventHandler ClientDisconnected;
 
         private readonly ILogger _logger;
-        private readonly TcpListener? _server;
-        private readonly List<NetClient>? _clients;
-        private readonly Messenger? _netMessenger;
+        private readonly TcpListener _server;
+        private readonly List<NetClient> _clients;
+        private readonly Messenger _netMessenger;
         private readonly object _slock = new object();
         private bool _stopRequested = false;
-        private CancellationTokenSource? _cts = null;
 
-        public NetServer(ICmdCenter commandCenter, INsuSystem nsuSystem, IConfiguration config, ILogger logger)
+        public NetServer(ICmdCenter commandCenter, INsuSystem nsuSystem, IConfiguration config, ILoggerFactory loggerFactory)
         {
-            _logger = logger.ForContext<NetServer>() ?? throw new ArgumentNullException(nameof(logger), "Instance of ILogger cannot be null.");
+            _logger = loggerFactory?.CreateLoggerShort<NetServer>() ?? NullLoggerFactory.Instance.CreateLoggerShort<NetServer>();
 
             var netServerCfg = config.GetSection("netServer").Get<NetServerCfg>();
             if (netServerCfg.Port < 0)
             {
-                _logger.Information("The Port value in \"netServer\" section is less than 0. NetServer is disabled");
+                _logger.LogInformation("The Port value in \"netServer\" section is less than 0. NetServer is disabled");
                 return;
             }
-            _logger.Information($"Starting NetServer on port {netServerCfg.Port}. To disable NetServer set port value less than 0.");
+            _logger.LogInformation($"Starting NetServer on port {netServerCfg.Port}. To disable NetServer set port value less than 0.");
 
             _server = new TcpListener(IPAddress.Any, netServerCfg.Port);
             _server.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             _clients = new List<NetClient>();
-            _netMessenger = new Messenger(this, commandCenter, nsuSystem, logger);
+            _netMessenger = new Messenger(this, commandCenter, nsuSystem, loggerFactory);
         }
 
-        public Task StartAsync()
+        public async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             if (_server != null)
-                _ = StartServer();
-            return Task.CompletedTask;
-        }
-
-        public Task StopAsync()
-        {
-            if (_server != null)
-                Stop();
-            return Task.CompletedTask;
+            {
+                stoppingToken.Register(Stop);
+                // Run until cancelled
+                await RunServer(stoppingToken);
+            }
         }
 
         public void Stop()
         {
-            _logger.Debug("Stop() called. Stopping NetServer...");
+            _logger.LogDebug("Stop() called. Stopping NetServer...");
             _stopRequested = true;
 
-            _cts?.Cancel();
-
-            _logger.Debug("Disconnecting clients...");
-            foreach (var client in _clients!)
+            _logger.LogDebug("Disconnecting clients...");
+            foreach (var client in _clients)
             {
                 if (client.Connected) client.Disconnect();
             }
             _clients.Clear();
-            _server!.Stop();
-            _logger.Debug("NetServer stopped.");
+            _server.Stop();
+            _logger.LogDebug("NetServer stopped.");
         }
 
-        private async Task StartServer()
+        private async Task RunServer(CancellationToken stoppingToken)
         {
-            _cts = new CancellationTokenSource();
-            if (!WaitForNetworkAdapter(_cts.Token))
+            if (!WaitForNetworkAdapter(stoppingToken))
             {
-                _logger.Error("Network adapter is not ready. Terminating NetServer.");
+                _logger.LogError("Network adapter is not ready. Terminating NetServer.");
                 return;
             }
-            _cts.Dispose();
-            _cts = null;
-            try
+
+            if (!stoppingToken.IsCancellationRequested)
             {
-                _server!.Start();
+                try
+                {
+                    _server.Start();
+                }
+                catch (SocketException ex)
+                {
+                    _logger.LogError($"NetServer cannot start: {ex}");
+                    return;
+                }
+                await StartServerListening();
             }
-            catch(SocketException ex)
-            {
-                _logger.Error($"NetServer cannot start: {ex}");
-                return;
-            }
-            await StartServerListening();
         }
 
         private async Task StartServerListening()
@@ -122,24 +116,27 @@ namespace NSUWatcher.NSUWatcherNet
             // return values: true - error; false - no error
             try
             {
-                _logger.Debug("NetServer is waiting for clients...");
+                _logger.LogDebug("NetServer is waiting for clients...");
                 while (true)
                 {
                     try
                     {
-                        TcpClient client = await _server!.AcceptTcpClientAsync();
+                        TcpClient client = await _server.AcceptTcpClientAsync();
                         ConnectClient(client);
                     }
                     catch (SocketException)
                     {
                         return false;
                     }
+                    catch (ObjectDisposedException)
+                    {
+                        return false;
+                    }
                 }
-
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "ListenForClientsAsync(): Exception:");
+                _logger.LogError(ex, "ListenForClientsAsync(): Exception:");
                 return true;
             }
         }
@@ -154,7 +151,7 @@ namespace NSUWatcher.NSUWatcherNet
                 {
                     if (++retryCount > 5)
                     {
-                        _logger.Error($"Too much retries ({retryCount - 1}). NetServer will not be restarted.");
+                        _logger.LogError($"Too much retries ({retryCount - 1}). NetServer will not be restarted.");
                         return true;
                     }
                 }
@@ -163,8 +160,8 @@ namespace NSUWatcher.NSUWatcherNet
                     retryCount = 0;
                 }
 
-                _logger.Debug("StartServerListening(): await ListeningThread() returned error. Restarting listener.");
-                _clients!.Clear();
+                _logger.LogDebug("StartServerListening(): await ListeningThread() returned error. Restarting listener.");
+                _clients.Clear();
                 return false;
             }
             return true;
@@ -183,23 +180,23 @@ namespace NSUWatcher.NSUWatcherNet
 
         private void ConnectClient(TcpClient tcpClient)
         {
-            var client = new NetClient(tcpClient, _netMessenger!, _logger);
+            var client = new NetClient(tcpClient, _netMessenger, (ILogger<NetClient>)_logger);
             client.ClientData.IPAddress = !(tcpClient.Client.RemoteEndPoint is IPEndPoint endPoint) ? string.Empty : endPoint.Address.ToString();
             client.Disconnected += NetClientDisconnected;
-            lock (_slock!)
+            lock (_slock)
             {
-                _clients!.Add(client);
+                _clients.Add(client);
             }
             _ = client.StartListeningAsync();
-            _logger.Debug("ConnectClient() - Raising ClientConnected event.");
+            _logger.LogDebug("ConnectClient() - Raising ClientConnected event.");
             OnClientConnected(client.ClientData);
         }
 
-        private void NetClientDisconnected(object? sender, EventArgs e)
+        private void NetClientDisconnected(object sender, EventArgs e)
         {
             if (sender is NetClient client)
             {
-                _logger.Debug($"ClientOnDisconnected(TcpClientHandler client - {client.ClientData.ClientID})");
+                _logger.LogDebug($"ClientOnDisconnected(TcpClientHandler client - {client.ClientData.ClientID})");
                 try
                 {
                     var evt = ClientDisconnected;
@@ -207,7 +204,7 @@ namespace NSUWatcher.NSUWatcherNet
                 }
                 finally
                 {
-                    if (!Monitor.IsEntered(_slock!))
+                    if (!Monitor.IsEntered(_slock))
                         CleanUpDisconnectedClients();
                 }
             }
@@ -221,32 +218,32 @@ namespace NSUWatcher.NSUWatcherNet
 
         private void CleanUpDisconnectedClients()
         {
-            _clients!.RemoveAll(x => x.Connected == false);
+            _clients.RemoveAll(x => x.Connected == false);
         }
 
         public void DisconnectClient(NetClientData clientData)
         {
-            _logger.Debug($"DisconnectClient(NetClientData clientData - {clientData.ClientID})", true);
-            NetClient? netClient = GetByID(clientData.ClientID);
+            _logger.LogDebug($"DisconnectClient(NetClientData clientData - {clientData.ClientID})", true);
+            NetClient netClient = GetByID(clientData.ClientID);
             if (netClient != null)
             {
-                _logger.Debug($"DisconnectClient(NetClientData clientData - {clientData.ClientID}):DisconnectClient(ch)", true);
+                _logger.LogDebug($"DisconnectClient(NetClientData clientData - {clientData.ClientID}):DisconnectClient(ch)", true);
                 DisconnectClient(netClient);
             }
         }
 
         private void DisconnectClient(NetClient netClient)
         {
-            _logger.Debug("DisconnectClient(NetClient netClient)");
+            _logger.LogDebug("DisconnectClient(NetClient netClient)");
             if (netClient.Connected)
                 netClient.Disconnect();
-            _logger.Debug("DisconnectClient(NetClient netClient): _clients.Remove(netClient)");
-            _clients!.Remove(netClient);
-            _logger.Debug($"Disconnection done. Clients left: {_clients.Count}");
+            _logger.LogDebug("DisconnectClient(NetClient netClient): _clients.Remove(netClient)");
+            _clients.Remove(netClient);
+            _logger.LogDebug($"Disconnection done. Clients left: {_clients.Count}");
         }
 
 
-        private NetClient? GetByID(Guid guid)
+        private NetClient GetByID(Guid guid)
         {
             return _clients.FirstOrDefault(x => x.ClientData.ClientID == guid);
         }

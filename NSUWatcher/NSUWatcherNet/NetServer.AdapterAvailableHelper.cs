@@ -2,9 +2,10 @@
 using System.Timers;
 //using System.Linq;
 using System.Net.NetworkInformation;
-using Serilog;
+
 using System.Threading;
 using Timer = System.Timers.Timer;
+using Microsoft.Extensions.Logging;
 
 namespace NSUWatcher.NSUWatcherNet
 {
@@ -17,12 +18,12 @@ namespace NSUWatcher.NSUWatcherNet
         {
             private readonly ILogger _logger;
             private readonly Timer _timer;
-            private ManualResetEvent? _mre = null;
+            private ManualResetEvent _mre = null;
             private int _counter = 0;
 
             public AdapterAvailableHelper(ILogger logger)
             {
-                _logger = logger.ForContext<AdapterAvailableHelper>();
+                _logger = logger;//.ForContext<AdapterAvailableHelper>();
                 _timer = new Timer(5000);
                 _timer.Elapsed += HelperTimer_Elapsed;
                 _timer.AutoReset = true;
@@ -30,7 +31,7 @@ namespace NSUWatcher.NSUWatcherNet
 
             public void Dispose()
             {
-                _logger.Debug("Dispose() called.");
+                _logger.LogDebug("Dispose() called.");
                 _timer.Dispose();
                 _mre?.Dispose();
             }
@@ -51,7 +52,7 @@ namespace NSUWatcher.NSUWatcherNet
                 if (!IsNetworkAdapterReady())
                 {
                     token.Register(Stop);
-                    _logger.Warning("Network adapter is not ready yet.");
+                    _logger.LogWarning("Network adapter is not ready yet.");
                     _timer.Enabled = true;
                     _mre = new ManualResetEvent(false);
                     _mre.WaitOne();
@@ -71,7 +72,7 @@ namespace NSUWatcher.NSUWatcherNet
                     _timer.Enabled = false;
                     _mre?.Set();
                 }
-                else _logger.Warning("Network adapter still not ready.");
+                else _logger.LogWarning("Network adapter still not ready.");
             }
 
             /// <summary>

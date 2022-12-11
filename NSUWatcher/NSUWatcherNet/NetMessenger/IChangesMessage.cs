@@ -5,6 +5,6 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public interface IChangesMessage
     {
-        public INetMessage Message(INSUSysPartDataContract dataContract, string property);
+        INetMessage Message(INSUSysPartDataContract dataContract, string property);
     }
 }

@@ -6,14 +6,14 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
     public static class KTypeChanges
     {
-        public static NetMessage? Message(IKTypeDataContract dataContract, string property)
+        public static NetMessage Message(IKTypeDataContract dataContract, string property)
         {
-            return property switch
+            switch (property)
             {
-                nameof(KType.Temperature) => new NetMessage(
+                case nameof(KType.Temperature): return new NetMessage(
                     KTypeTempChanged.Create(dataContract.Name, dataContract.Temperature)
-                    ),
-                _ => null
+                    );
+                default: return null;
             };
         }
     }
