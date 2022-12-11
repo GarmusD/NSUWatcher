@@ -1,10 +1,12 @@
 ﻿namespace NSUWatcher.Interfaces.MCUCommands.From
 {
+#nullable enable
     public interface ISystemStatus : IMessageFromMcu
     {
-        public string CurrentState { get; set; }
-        public int FreeMem { get; set; }
-        public int? UpTime { get; set; }
-        public bool RebootRequired { get; set; }
+        string CurrentState { get; set; }
+        int FreeMem { get; set; }
+        int? UpTime { get; set; }
+        bool RebootRequired { get; set; }
     }
+#nullable enable
 }

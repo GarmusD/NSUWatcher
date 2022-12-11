@@ -4,7 +4,7 @@
     /// Contains status of all relay modules
     /// </summary>
     public interface IRelayInfo : IMessageFromMcu
-    {
+    {   
         IRelayModuleStatus[] Values { get; set; }
     }
 

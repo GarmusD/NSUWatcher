@@ -2,6 +2,6 @@
 {
     public interface ITempSensorCommands
     {
-        public IExternalCommand Setup(byte configPos, bool enabled, byte[] sensorAddress, string name);
+        IExternalCommand Setup(byte configPos, bool enabled, byte[] sensorAddress, string name);
     }
 }

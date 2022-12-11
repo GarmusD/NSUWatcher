@@ -1,14 +1,16 @@
 ﻿namespace NSUWatcher.Interfaces.MCUCommands.From
 {
+#nullable enable
     public interface ISwitchSnapshot : IMessageFromMcu
     {
-        public byte ConfigPos { get; set; }
-        public bool Enabled { get; set; }
-        public string Name { get; set; }
-        public string DependOnName { get; set; }
-        public string DependancyStatus { get; set; }
-        public string ForceState { get; set; }
-        public bool? IsForced { get; set; }
-        public string? CurrentState { get; set; }
+        byte ConfigPos { get; set; }
+        bool Enabled { get; set; }
+        string Name { get; set; }
+        string DependOnName { get; set; }
+        string DependancyStatus { get; set; }
+        string ForceState { get; set; }
+        bool? IsForced { get; set; }
+        string? CurrentState { get; set; }
     }
+#nullable disable
 }

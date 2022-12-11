@@ -2,6 +2,6 @@
 {
     public interface IToMcuCircPumpCommands
     {
-        public ICommandToMCU Clicked(string circPumpName);
+        ICommandToMCU Clicked(string circPumpName);
     }
 }

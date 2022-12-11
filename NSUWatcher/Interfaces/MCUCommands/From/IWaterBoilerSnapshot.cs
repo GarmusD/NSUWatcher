@@ -1,24 +1,23 @@
 ﻿namespace NSUWatcher.Interfaces.MCUCommands.From
 {
-
 	public interface IWaterBoilerSnapshot : IMessageFromMcu
     {
-		public byte ConfigPos { get; set; }
-		public bool Enabled { get; set; }
-		public string Name { get; set; }
-		public string TempSensorName { get; set; }
-		public string CircPumpName { get; set; }
-		public string TempTriggerName { get; set; }
-		public bool ElHeatingEnabled { get; set; }
-		public byte ElPowerChannel { get; set; }
-		public IElHeatingDataSnapshot[] ElHeatingData { get; set; }
+		byte ConfigPos { get; set; }
+		bool Enabled { get; set; }
+		string Name { get; set; }
+		string TempSensorName { get; set; }
+		string CircPumpName { get; set; }
+		string TempTriggerName { get; set; }
+		bool ElHeatingEnabled { get; set; }
+		int ElPowerChannel { get; set; }	
+		IElHeatingDataSnapshot[] ElHeatingData { get; set; }
 	}
 	
 	public interface IElHeatingDataSnapshot
 	{
-		public byte StartHour { get; set; }
-		public byte StartMinute { get; set; }
-		public byte StopHour { get; set; }
-		public byte StopMinute { get; set; }
+		byte StartHour { get; set; }
+		byte StartMinute { get; set; }
+		byte StopHour { get; set; }
+		byte StopMinute { get; set; }
 	}
 }

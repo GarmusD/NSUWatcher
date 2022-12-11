@@ -3,11 +3,20 @@
 #nullable enable
     public interface ITempTriggerSnapshot : IMessageFromMcu
     {
-        public byte ConfigPos { get; set; }
-        public bool Enabled { get; set; }
-        public string Name { get; set; }
-        public ITempTriggerPiece[] TempTriggerPieces { get; set; }
-        public string? Status { get; set; }
+        byte ConfigPos { get; set; }
+        bool Enabled { get; set; }
+        string Name { get; set; }
+        ITempTriggerPiece[] TempTriggerPieces { get; set; }   
+        string? Status { get; set; }
     }
 #nullable disable
+
+    public interface ITempTriggerPiece : IMessageFromMcu
+    {
+        bool Enabled { get; set; }
+        string TSensorName { get; set; }
+        int Condition { get; set; }
+        double Temperature { get; set; }
+        double Histeresis { get; set; }
+    }
 }

@@ -2,8 +2,8 @@
 {
     public interface ITempChanged : IMessageFromMcu
     {
-        public string Address { get; set; }
-        public float Temperature { get; set; }
-        public int ReadErrorCount { get; set; }
+        string Address { get; set; }
+        float Temperature { get; set; }
+        int ReadErrorCount { get; set; }
     }
 }

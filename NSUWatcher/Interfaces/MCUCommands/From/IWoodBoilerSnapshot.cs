@@ -1,23 +1,25 @@
 ﻿namespace NSUWatcher.Interfaces.MCUCommands.From
 {
+#nullable enable
 	public interface IWoodBoilerSnapshot : IMessageFromMcu
     {
-		public byte ConfigPos { get; set; }
-		public bool Enabled { get; set; }
-		public string Name { get; set; }
-		public double WorkingTemperature { get; set; }
-		public double Histeresis { get; set; }
-		public string TempSensorName { get; set; }
-		public string KTypeName { get; set; }
-		public int ExhaustFanChannel { get; set; }
-		public int LadomChannel { get; set; }
-		public string LadomatTriggerName { get; set; }
-		public double LadomatWorkingTemp { get; set; }
-		public string WaterBoilerName { get; set; }
-		public double? CurrentTemperature { get; set; }
-		public string? Status { get; set; }
-		public string? LadomatStatus { get; set; }
-		public string? ExhaustFanStatus { get; set; }
-		public string? TemperatureStatus { get; set; }
+		byte ConfigPos { get; set; }
+		bool Enabled { get; set; }
+		string Name { get; set; }
+		double WorkingTemperature { get; set; }
+		double Histeresis { get; set; }
+		string TempSensorName { get; set; }
+		string KTypeName { get; set; }
+		int ExhaustFanChannel { get; set; }
+		int LadomChannel { get; set; }
+		string LadomatTriggerName { get; set; }
+		double LadomatWorkingTemp { get; set; }
+		string WaterBoilerName { get; set; }
+		double? CurrentTemperature { get; set; }
+		string? Status { get; set; }
+		string? LadomatStatus { get; set; }
+		string? ExhaustFanStatus { get; set; }
+		string? TemperatureStatus { get; set; }
     }
+#nullable disable
 }

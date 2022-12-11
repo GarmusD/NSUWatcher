@@ -2,11 +2,11 @@
 {
 	public interface IAlarmSnapshot : IMessageFromMcu
     {
-		public byte ConfigPos { get; set; }
-		public bool Enabled { get; set; }
-		public double AlarmTemperature { get; set; }
-		public double Histeresis { get; set; }
-		public IAlarmChannel[] ChannelData { get; set; }
-		public bool? IsAlarming { get; set; }
+		int ConfgPos { get; set; }
+		bool Enabled { get; set; }
+		double AlarmTemperature { get; set; }
+		double Histeresis { get; set; }
+		IAlarmChannel[] ChannelData { get; set; }
+		bool? IsAlarming { get; set; }
     }
 }

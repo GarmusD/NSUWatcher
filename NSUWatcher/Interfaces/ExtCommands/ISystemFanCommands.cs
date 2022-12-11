@@ -2,6 +2,6 @@
 {
     public interface ISystemFanCommands
     {
-        public IExternalCommand Setup(byte configPos, bool enabled, string name, string tempSensorName, double minTemperature, double maxTemperature);
+        IExternalCommand Setup(byte configPos, bool enabled, string name, string tempSensorName, double minTemperature, double maxTemperature);
     }
 }

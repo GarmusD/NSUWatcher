@@ -2,12 +2,12 @@
 {
 	public interface ISystemFanSnapshot : IMessageFromMcu
     {
-		public byte ConfigPos { get; set; }
-		public bool Enabled { get; set; }
-		public string Name { get; set; }
-		public string TempSensorName { get; set; }
-		public double MinTemperature { get; set; }
-		public double MaxTemperature { get; set; }
-		public int? CurrentPWM { get; set; }
+		byte ConfigPos { get; set; }
+		bool Enabled { get; set; }
+		string Name { get; set; }
+		string TempSensorName { get; set; }
+		double MinTemperature { get; set; }
+		double MaxTemperature { get; set; }
+		int? CurrentPWM { get; set; }
     }
 }

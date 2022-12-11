@@ -2,7 +2,7 @@
 {
 	public interface IAlarmChannel : IMessageFromMcu
 	{
-		public byte Channel { get; set; }
-		public bool IsOpen { get; set; }
+		int Channel { get; set; }
+		bool IsOpen { get; set; }
 	}
 }
