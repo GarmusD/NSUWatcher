@@ -24,5 +24,5 @@ Basic functionality
 NSUWatcherNet, log sensors data to MySql database.
 
 ### 0.5.1
-Upgrading project to .netFramework 4.8. .netCore cannot be used because the software runs on linux 14.04 and some functionality requires newer system libraries.
-Hosting environment is used if running as service.
+Moving project to .netFramework 4.7.2. .netCore cannot be used because the software runs on linux 14.04 and some functionality requires newer system libraries.
+Hosting environment is used if running as service or interactive mode.
