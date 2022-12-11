@@ -9,9 +9,9 @@ namespace NSUWatcher
 {
     public class NsuConsoleSink : ILogEventSink
     {
-        private readonly IFormatProvider? _formatProvider;
+        private readonly IFormatProvider _formatProvider;
 
-        public NsuConsoleSink(IFormatProvider? formatProvider)
+        public NsuConsoleSink(IFormatProvider formatProvider)
         {
             _formatProvider = formatProvider;
         }
@@ -27,7 +27,7 @@ namespace NSUWatcher
     {
         public static LoggerConfiguration NsuConsole(
                   this LoggerSinkConfiguration loggerConfiguration,
-                  IFormatProvider? formatProvider = null)
+                  IFormatProvider formatProvider = null)
         {
             return loggerConfiguration.Sink(new NsuConsoleSink(formatProvider));
         }
