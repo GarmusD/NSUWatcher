@@ -1,8 +1,6 @@
-﻿using Flurl.Http.Configuration;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Core;
-using Serilog.Extensions.Logging;
 using System;
 using System.IO;
 using TelegramSink;
@@ -16,7 +14,7 @@ namespace NSUWatcher.Logger
         public static LoggingLevelSwitch LoggingLevelSwitch { get; } = new LoggingLevelSwitch();
         public static LoggingLevelSwitch ConsoleLevelSwitch { get; } = new LoggingLevelSwitch(initialMinimumLevel: global::Serilog.Events.LogEventLevel.Debug);
 
-        public static ILogger Create(IConfigurationRoot config, Action<LoggerConfiguration> action = null)
+        public static ILogger Create(IConfigurationRoot config, Action<LoggerConfiguration>? action = null)
         {
             var loggerConf = CreateDefaultConfiguration(config);
             action?.Invoke(loggerConf);
