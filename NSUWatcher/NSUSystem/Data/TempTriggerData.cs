@@ -2,6 +2,7 @@
 using NSU.Shared.NSUSystemPart;
 using NSUWatcher.Interfaces.MCUCommands.From;
 using System;
+using System.Threading;
 
 namespace NSUWatcher.NSUSystem.Data
 {
@@ -24,7 +25,7 @@ namespace NSUWatcher.NSUSystem.Data
             ConfigPos = snapshot.ConfigPos;
             Enabled = snapshot.Enabled;
             Name = snapshot.Name;
-            Status = string.IsNullOrEmpty(snapshot.Status) ? Status.UNKNOWN : Enum.Parse<Status>(snapshot.Status, true);
+            Status = snapshot.Status == null ? Status.UNKNOWN : (Status)Enum.Parse(typeof(Status), snapshot.Status, true);
             TempTriggerPieces = new TempTriggerPieceData[TempTrigger.MaxTempTriggerPieces];
             for (var i = 0; i < TempTrigger.MaxTempTriggerPieces; i++)
             {

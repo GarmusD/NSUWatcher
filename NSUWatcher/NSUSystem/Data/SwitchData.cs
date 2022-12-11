@@ -22,9 +22,9 @@ namespace NSUWatcher.NSUSystem.Data
             Name = snapshot.Name;
             ConfigPos = snapshot.ConfigPos;
             Dependancy = snapshot.DependOnName;
-            Status = snapshot.CurrentState == null ? Status.UNKNOWN : Enum.Parse<Status>(snapshot.CurrentState, true);
-            OnDependancyStatus = Enum.Parse<Status>(snapshot.DependancyStatus, true);
-            ForceStatus = Enum.Parse<Status>(snapshot.ForceState, true);
+            Status = snapshot.CurrentState == null ? Status.UNKNOWN : (Status)Enum.Parse(typeof(Status), snapshot.CurrentState, true);
+            OnDependancyStatus = (Status)Enum.Parse(typeof(Status), snapshot.DependancyStatus, true);
+            ForceStatus = (Status)Enum.Parse(typeof(Status), snapshot.ForceState, true);
             IsForced = snapshot.IsForced.GetValueOrDefault();
         }
     }
