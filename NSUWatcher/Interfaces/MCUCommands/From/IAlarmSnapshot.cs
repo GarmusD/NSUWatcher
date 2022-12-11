@@ -6,7 +6,7 @@ namespace NSUWatcher.Interfaces.MCUCommands.From
 	public interface IAlarmSnapshot : IMessageFromMcu
     {
 		[JsonProperty(JKeys.Generic.ConfigPos)]
-		public int ConfgPos { get; set; }
+		public byte ConfigPos { get; set; }
 		[JsonProperty(JKeys.Generic.Enabled)]
 		public bool Enabled { get; set; }
 		[JsonProperty(JKeys.Alarm.Temp)]
