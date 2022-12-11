@@ -1,31 +1,504 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
-
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{69FB3B4E-670B-4CE2-B96C-A8751851B8A8}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>NSUWatcher</RootNamespace>
+    <AssemblyName>NSUWatcher</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <Nullable>enable</Nullable>
-    <BaseOutputPath>..\bin</BaseOutputPath>
+    <LangVersion>8.0</LangVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;NSUWATCHER</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
     <StartupObject>NSUWatcher.Program</StartupObject>
   </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DefineConstants>$(DefineConstants)TRACE;NSUWATCHER</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DefineConstants>$(DefineConstants)TRACE;NSUWATCHER</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-    <PackageReference Include="Serilog.Extensions.Hosting" Version="5.0.1" />
-    <PackageReference Include="Serilog.Extensions.Logging" Version="3.1.0" />
-    <PackageReference Include="Serilog.Settings.Configuration" Version="3.4.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="4.1.1-dev-00896" />
-    <PackageReference Include="Serilog.Sinks.File" Version="5.0.0" />
-    <PackageReference Include="Serilog.Sinks.Telegram" Version="0.2.1" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <Reference Include="Flurl, Version=2.8.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Flurl.2.8.2\lib\net40\Flurl.dll</HintPath>
+    </Reference>
+    <Reference Include="Flurl.Http, Version=2.4.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Flurl.Http.2.4.2\lib\net46\Flurl.Http.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.7.0.0\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.7.0.0\lib\net462\Microsoft.Extensions.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.Abstractions.7.0.0\lib\net462\Microsoft.Extensions.Configuration.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.Binder, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.Binder.7.0.0\lib\net462\Microsoft.Extensions.Configuration.Binder.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.CommandLine, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.CommandLine.7.0.0\lib\net462\Microsoft.Extensions.Configuration.CommandLine.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.EnvironmentVariables, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.EnvironmentVariables.7.0.0\lib\net462\Microsoft.Extensions.Configuration.EnvironmentVariables.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.FileExtensions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.FileExtensions.7.0.0\lib\net462\Microsoft.Extensions.Configuration.FileExtensions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.Json.7.0.0\lib\net462\Microsoft.Extensions.Configuration.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Configuration.UserSecrets, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Configuration.UserSecrets.7.0.0\lib\net462\Microsoft.Extensions.Configuration.UserSecrets.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.DependencyInjection, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.7.0.0\lib\net462\Microsoft.Extensions.DependencyInjection.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.DependencyInjection.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyInjection.Abstractions.7.0.0\lib\net462\Microsoft.Extensions.DependencyInjection.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.DependencyModel, Version=3.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.DependencyModel.3.0.0\lib\net451\Microsoft.Extensions.DependencyModel.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.FileProviders.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.FileProviders.Abstractions.7.0.0\lib\net462\Microsoft.Extensions.FileProviders.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.FileProviders.Physical, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.FileProviders.Physical.7.0.0\lib\net462\Microsoft.Extensions.FileProviders.Physical.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.FileSystemGlobbing, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.FileSystemGlobbing.7.0.0\lib\net462\Microsoft.Extensions.FileSystemGlobbing.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Hosting, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Hosting.7.0.0\lib\net462\Microsoft.Extensions.Hosting.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Hosting.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Hosting.Abstractions.7.0.0\lib\net462\Microsoft.Extensions.Hosting.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Logging.7.0.0\lib\net462\Microsoft.Extensions.Logging.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.Abstractions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Logging.Abstractions.7.0.0\lib\net462\Microsoft.Extensions.Logging.Abstractions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.Configuration, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Logging.Configuration.7.0.0\lib\net462\Microsoft.Extensions.Logging.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.Console, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Logging.Console.7.0.0\lib\net462\Microsoft.Extensions.Logging.Console.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.Debug, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Logging.Debug.7.0.0\lib\net462\Microsoft.Extensions.Logging.Debug.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.EventLog, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Logging.EventLog.7.0.0\lib\net462\Microsoft.Extensions.Logging.EventLog.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Logging.EventSource, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Logging.EventSource.7.0.0\lib\net462\Microsoft.Extensions.Logging.EventSource.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Options, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Options.7.0.0\lib\net462\Microsoft.Extensions.Options.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Options.ConfigurationExtensions, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Options.ConfigurationExtensions.7.0.0\lib\net462\Microsoft.Extensions.Options.ConfigurationExtensions.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Extensions.Primitives, Version=7.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Extensions.Primitives.7.0.0\lib\net462\Microsoft.Extensions.Primitives.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.12.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog, Version=2.0.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\packages\Serilog.2.10.0\lib\net46\Serilog.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Extensions.Hosting, Version=2.0.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\packages\Serilog.Extensions.Hosting.5.0.1\lib\netstandard2.0\Serilog.Extensions.Hosting.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Extensions.Logging, Version=2.0.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\packages\Serilog.Extensions.Logging.3.1.0\lib\netstandard2.0\Serilog.Extensions.Logging.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Settings.Configuration, Version=3.4.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\packages\Serilog.Settings.Configuration.3.4.0\lib\net461\Serilog.Settings.Configuration.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Sinks.Console, Version=4.1.0.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\packages\Serilog.Sinks.Console.4.1.0\lib\net45\Serilog.Sinks.Console.dll</HintPath>
+    </Reference>
+    <Reference Include="Serilog.Sinks.File, Version=5.0.1.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
+      <HintPath>..\packages\Serilog.Sinks.File.5.0.1-dev-00947\lib\net45\Serilog.Sinks.File.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
+    </Reference>
+    <Reference Include="System.CommandLine, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.CommandLine.2.0.0-beta4.22272.1\lib\netstandard2.0\System.CommandLine.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Diagnostics.DiagnosticSource, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Diagnostics.DiagnosticSource.7.0.0\lib\net462\System.Diagnostics.DiagnosticSource.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IO, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.4.3.0\lib\net462\System.IO.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Memory.4.5.5\lib\net461\System.Memory.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Numerics.Vectors, Version=4.1.4.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Numerics.Vectors.4.5.0\lib\net46\System.Numerics.Vectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime, Version=4.1.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.4.3.0\lib\net462\System.Runtime.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.0.0\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Runtime.InteropServices.RuntimeInformation, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.InteropServices.RuntimeInformation.4.3.0\lib\net45\System.Runtime.InteropServices.RuntimeInformation.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Security.Cryptography.Algorithms, Version=4.2.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.Algorithms.4.3.1\lib\net463\System.Security.Cryptography.Algorithms.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Security.Cryptography.Encoding, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.Encoding.4.3.0\lib\net46\System.Security.Cryptography.Encoding.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Security.Cryptography.Primitives, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Security.Cryptography.Primitives.4.3.0\lib\net46\System.Security.Cryptography.Primitives.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Encodings.Web.7.0.0\lib\net462\System.Text.Encodings.Web.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Json, Version=7.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Text.Json.7.0.0\lib\net462\System.Text.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.ValueTuple.4.5.0\lib\net47\System.ValueTuple.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+    <Reference Include="TelegramSink, Version=0.2.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Serilog.Sinks.Telegram.0.2.1\lib\netstandard2.0\TelegramSink.dll</HintPath>
+    </Reference>
   </ItemGroup>
-
+  <ItemGroup>
+    <Compile Include="CommandCenter\CmdCenter.cs" />
+    <Compile Include="CommandCenter\ExtCommands\BinUploaderCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\CircPumpCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\CollectorCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\ComfortZoneCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\ConsoleCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\KTypeCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\RelayModuleCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\SwitchCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\SystemCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\SystemFanCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\TempSensorCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\TempTriggerCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\UserCmdCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\WaterBoilerCommands.cs" />
+    <Compile Include="CommandCenter\ExtCommands\WoodBoilerCommands.cs" />
+    <Compile Include="CommandCenter\ExternalCommand.cs" />
+    <Compile Include="CommandCenter\ExternalCommands.cs" />
+    <Compile Include="CommandCenter\LowercaseNamingStrategy.cs" />
+    <Compile Include="CommandCenter\MCUCommands.cs" />
+    <Compile Include="CommandCenter\McuMessageReceivedArgs.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\AllarmMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\ArduinoV1Messages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\CircPumpMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\CollectorMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\ComfortZoneMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\AlarmSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\CircPumpInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\CircPumpSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\CollectorInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\CollectorSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\ComfortZoneActuatorStatus.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\ComfortZoneFloorTempInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\ComfortZoneLowTempMode.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\ComfortZoneRoomTempInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\ComfortZoneSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\KTypeInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\KTypeSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\RelayChannelClosed.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\RelayChannelOpened.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\RelaySnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\RelayStatus.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\SwitchInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\SwitchSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\SystemError.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\SystemFanInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\SystemFanSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\SystemSetTimeResult.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\SystemSnapshotDone.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\SystemStatus.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\TempChanged.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\TempTriggerInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\TempTriggerSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\TSensorConfigSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\TSensorInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\TSensorSystemSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\WaterBoilerSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\WoodBoilerExhaustFanInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\WoodBoilerInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\WoodBoilerLadomatInfo.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\Data\WoodBoilerSnapshot.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\IFromArduinoV1Base.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\KTypeMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\RelayMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\SwitchMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\SystemFanCommands.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\SystemMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\TempTriggerMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\TSensorsMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\WaterBoilerMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\ArduinoV1\WoodBoilerMessages.cs" />
+    <Compile Include="CommandCenter\MessagesFromMcu\Factory\MessageFromMcuFactories.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\CommandToMCU.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\ArduinoV1Commands.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\CircPumpCommands.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\CircPump\ClickedData.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\ICommandToMcuDataBase.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\System\EmptyCommand.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\System\SetTimeData.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\TempSensor\SetupTempSensorData.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\SystemCommands.cs" />
+    <Compile Include="CommandCenter\ToMcuCommands\Factories\ToMcuCommandFactories.cs" />
+    <Compile Include="DBUtils\PasswordHasher.cs" />
+    <Compile Include="Exceptions\ConfigurationValueMissingException.cs" />
+    <Compile Include="Interfaces\ExtCommands\IBinUploaderCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\ICircPumpCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\ICollectorCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\IComfortZoneCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\IConsoleCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\IKTypeCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\IRelayModuleCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\ISwitchCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\ISystemCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\ISystemFanCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\ITempSensorCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\ITempTriggerCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\IUserCmdCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\IWaterBoilerCommands.cs" />
+    <Compile Include="Interfaces\ExtCommands\IWoodBoilerCommands.cs" />
+    <Compile Include="Interfaces\ICmdCenter.cs" />
+    <Compile Include="Interfaces\IExternalCommand.cs" />
+    <Compile Include="Interfaces\IExternalCommandResult.cs" />
+    <Compile Include="Interfaces\IExternalCommands.cs" />
+    <Compile Include="Interfaces\IMessageData.cs" />
+    <Compile Include="Interfaces\IMcuMessageTransport.cs" />
+    <Compile Include="Interfaces\INsuSystem.cs" />
+    <Compile Include="Interfaces\INsuUser.cs" />
+    <Compile Include="Interfaces\INsuUsers.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IAlarmChannel.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IAlarmSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ICircPumpInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ICircPumpSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ICollectorInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ICollectorSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IComfortZoneActuatorStatus.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IComfortZoneFloorTempInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IComfortZoneLowTempMode.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IComfortZoneRoomTempInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IComfortZoneSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IKTypeInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IKTypeSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IRelayChannelClosed.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IRelayInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IRelayChannelOpened.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IRelaySnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ISwitchInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ISwitchSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ISystemError.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ISystemFanInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ISystemFanSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ISystemSetTimeResult.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ISystemSnapshotDone.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ISystemStatus.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ITempChanged.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ITempTriggerInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ITempTriggerSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ITSensorConfigSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ITSensorInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\ITSensorSystemSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IWaterBoilerSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IWoodBoilerExhaustFanInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IWoodBoilerInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IWoodBoilerLadomatInfo.cs" />
+    <Compile Include="Interfaces\MCUCommands\From\IWoodBoilerSnapshot.cs" />
+    <Compile Include="Interfaces\MCUCommands\ICommandToMCU.cs" />
+    <Compile Include="Interfaces\MCUCommands\ICommandToMcuData.cs" />
+    <Compile Include="Interfaces\MCUCommands\IFromMcuMessages.cs" />
+    <Compile Include="Interfaces\MCUCommands\IMcuCommands.cs" />
+    <Compile Include="Interfaces\MCUCommands\IMessageFromMcu.cs" />
+    <Compile Include="Interfaces\MCUCommands\IToMcuCommands.cs" />
+    <Compile Include="Interfaces\MCUCommands\To\IToMcuCircPumpCommands.cs" />
+    <Compile Include="Interfaces\MCUCommands\To\IToMcuSystemCommands.cs" />
+    <Compile Include="Interfaces\MCUCommands\To\IToMcuTempSensorCommands.cs" />
+    <Compile Include="Logger\ILoggerExt.cs" />
+    <Compile Include="Logger\LoggerFactory.cs" />
+    <Compile Include="Logger\TelegramLogCfg.cs" />
+    <Compile Include="NSUSystem\Config\BossacConfig.cs" />
+    <Compile Include="NSUSystem\Config\NsuSysConfig.cs" />
+    <Compile Include="NSUSystem\Data\CircPumpData.cs" />
+    <Compile Include="NSUSystem\Data\CollectorData.cs" />
+    <Compile Include="NSUSystem\Data\ComfortZoneData.cs" />
+    <Compile Include="NSUSystem\Data\KTypeData.cs" />
+    <Compile Include="NSUSystem\Data\McuStatusData.cs" />
+    <Compile Include="NSUSystem\Data\RelayModuleData.cs" />
+    <Compile Include="NSUSystem\Data\SwitchData.cs" />
+    <Compile Include="NSUSystem\Data\SystemFanData.cs" />
+    <Compile Include="NSUSystem\Data\TempTriggerData.cs" />
+    <Compile Include="NSUSystem\Data\WaterBoilerData.cs" />
+    <Compile Include="NSUSystem\Data\WoodBoilerData.cs" />
+    <Compile Include="NSUSystem\DaylightSavingTimeHelper.cs" />
+    <Compile Include="NSUSystem\NsuSystem.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\BinUploader.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\CircPumps.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\Collectors.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\ComfortZones.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\Console.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\ExtCommandResult.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\KTypes.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\NSUSysPartsBase.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\PartConsts.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\PartType.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\RelayModules.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\Switches.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\Syscmd.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\SystemFans.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\TempSensors.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\TempTriggers.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\Usercmd.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\WaterBoilers.cs" />
+    <Compile Include="NSUSystem\NSUSystemParts\WoodBoilers.cs" />
+    <Compile Include="NSUUserManagement\NSUUser.cs" />
+    <Compile Include="NSUUserManagement\NSUUserPermissions.cs" />
+    <Compile Include="NSUUserManagement\NSUUsers.cs" />
+    <Compile Include="NSUUserManagement\NSUUserType.cs" />
+    <Compile Include="NSUWatcherNet\DataReceivedArgs.cs" />
+    <Compile Include="NSUWatcherNet\NetClient.cs" />
+    <Compile Include="NSUWatcherNet\NetClientData.cs" />
+    <Compile Include="NSUWatcherNet\NetClientRequirements.cs" />
+    <Compile Include="NSUWatcherNet\NetMessage.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\AlarmChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\CircPumpChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\ComfortZoneChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\IChangesMessage.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\IMsgProcessor.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\KTypeChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\Messenger.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\NsuSysMsgProcessor.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\RelayModuleChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\SwitchChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\SysMsgProcessor.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\SystemFanChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\TempTriggerChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\TSensorChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\WoodBoilerChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetServer.AdapterAvailableHelper.cs" />
+    <Compile Include="NSUWatcherNet\NetServer.cs" />
+    <Compile Include="NSUWatcherNet\NetServerCfg.cs" />
+    <Compile Include="NSUWatcherNet\OldCode.cs" />
+    <Compile Include="NSUWatcherNet\WatcherNet.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Logger\Serilog\NsuConsoleMessage.cs" />
+    <Compile Include="Logger\Serilog\NsuConsoleSink.cs" />
+    <Compile Include="Transport\Serial\Config\RebootMcuConfig.cs" />
+    <Compile Include="Transport\Serial\Config\SerialConfig.cs" />
+    <Compile Include="Transport\Serial\SerialTransport.cs" />
+    <Compile Include="Transport\TestTransport\CommandSender.cs" />
+    <Compile Include="Transport\TestTransport\Commands\ITestCommand.cs" />
+    <Compile Include="Transport\TestTransport\Commands\SysCommands.cs" />
+    <Compile Include="Transport\TestTransport\Commands\SysSnapshotLines.cs" />
+    <Compile Include="Transport\TestTransport\Commands\TestCommandsBase.cs" />
+    <Compile Include="Transport\TestTransport\Commands\TSensorCommands.cs" />
+    <Compile Include="Transport\TestTransport\Commands\TSensorAdresses.cs" />
+    <Compile Include="Transport\TestTransport\Commands\TSensorTemplate.cs" />
+    <Compile Include="Transport\TestTransport\TestCommands.cs" />
+    <Compile Include="Transport\TestTransport\TestTransport.cs" />
+    <Compile Include="Worker\NSUWorker.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Include="appsettings.Development.json" />
+    <None Include="appsettings.json" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="DbContext\" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
+      <Visible>False</Visible>
+      <ProductName>Microsoft .NET Framework 4.7.2 %28x86 and x64%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
+  </ItemGroup>
   <Import Project="..\..\NSUShared\NSUShared.projitems" Label="Shared" />
-
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
