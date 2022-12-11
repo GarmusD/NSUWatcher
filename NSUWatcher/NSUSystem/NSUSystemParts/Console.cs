@@ -5,7 +5,7 @@ using NSU.Shared.NSUSystemPart;
 using NSU.Shared.Serializer;
 using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.MCUCommands;
-using NSUWatcher.Serilog;
+using NSUWatcher.Logger.Serilog;
 using Serilog;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
