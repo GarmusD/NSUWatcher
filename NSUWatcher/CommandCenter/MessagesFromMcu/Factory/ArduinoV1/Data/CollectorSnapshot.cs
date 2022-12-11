@@ -24,12 +24,6 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         
         [JsonProperty(JKeys.Collector.Valves)]
         public ICollectorActuator[] Actuators { get; set; } = new CollectorActuator[0];
-        
-        //[JsonProperty(JKeys.Generic.Source)]
-        //public string Source { get; set; } = string.Empty;
-        
-        //[JsonProperty(JKeys.Generic.CommandID)]
-        //public string? CommandID { get; set; }
     }
 
     public class CollectorActuator : ICollectorActuator

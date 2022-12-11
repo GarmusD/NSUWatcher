@@ -29,31 +29,25 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         public bool ElHeatingEnabled { get; set; }
         
         [JsonProperty(JKeys.WaterBoiler.ElPowerChannel)]
-        public int ElPowerChannel { get; set; }
+        public byte ElPowerChannel { get; set; }
         
         [JsonProperty(JKeys.WaterBoiler.PowerData)]
         public IElHeatingDataSnapshot[] ElHeatingData { get; set; } = new HeatingData[0];
-        
-        //[JsonProperty(JKeys.Generic.Source)]
-        //public string Source { get; set; } = string.Empty;
-        
-        //[JsonProperty(JKeys.Generic.CommandID)]
-        //public string? CommandID { get; set; }
     }
 #nullable disable
 
     public class HeatingData : IElHeatingDataSnapshot
     {
         [JsonProperty(JKeys.WaterBoiler.PDStartHour)]
-        public int StartHour { get; set; }
+        public byte StartHour { get; set; }
         
         [JsonProperty(JKeys.WaterBoiler.PDStartMin)]
-        public int StartMinute { get; set; }
+        public byte StartMinute { get; set; }
         
         [JsonProperty(JKeys.WaterBoiler.PDStopHour)]
-        public int StopHour { get; set; }
+        public byte StopHour { get; set; }
         
         [JsonProperty(JKeys.WaterBoiler.PDStopMin)]
-        public int StopMinute { get; set; }
+        public byte StopMinute { get; set; }
     }
 }
