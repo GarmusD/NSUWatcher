@@ -7,7 +7,7 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
     public class AlarmSnapshot : IAlarmSnapshot
     {
         [JsonProperty(JKeys.Generic.ConfigPos)]
-        public int ConfgPos { get; set; }
+        public byte ConfigPos { get; set; }
         
         [JsonProperty(JKeys.Generic.Enabled)]
         public bool Enabled { get; set; }
@@ -28,7 +28,7 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
     public class AlarmChannel : IAlarmChannel
     {
         [JsonProperty(JKeys.Alarm.Channel)]
-        public int Channel { get; set; }
+        public byte Channel { get; set; }
 
         [JsonProperty(JKeys.Alarm.IsOpen)]
         public bool IsOpen { get; set; }
