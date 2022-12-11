@@ -38,7 +38,7 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         public int ActuatorType { get; set; }
         
         [JsonProperty(JKeys.Collector.ActuatorChannel)]
-        public int Channel { get; set; }
+        public byte Channel { get; set; }
         
         [JsonProperty(JKeys.Generic.Status)]
         public bool? IsOpen { get; set; }
