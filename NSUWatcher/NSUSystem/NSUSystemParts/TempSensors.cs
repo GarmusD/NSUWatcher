@@ -9,6 +9,7 @@ using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
+using NSU.Shared.DataContracts;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -156,6 +157,13 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             _sensors.Clear();
         }
+
+#nullable enable
+        public override IEnumerator? GetEnumerator<T>()
+        {
+            return (typeof(T) is ITempSensorDataContract) ? _sensors.GetEnumerator() : (IEnumerator?)null;
+        }
+#nullable disable
     }
 }
 

@@ -8,6 +8,8 @@ using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
+using System.Collections;
+using NSU.Shared.DataContracts;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -79,6 +81,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             _collectors.Clear();
         }
+#nullable enable
+        public override IEnumerator? GetEnumerator<T>()
+        {
+            return (typeof(T) is ICollectorDataContract) ? _collectors.GetEnumerator() : (IEnumerator?)null;
+        }
+#nullable disable
     }
 }
 

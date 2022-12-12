@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using NSU.Shared;
+using NSU.Shared.DataContracts;
 using NSU.Shared.NSUSystemPart;
 using NSU.Shared.Serializer;
 using NSUWatcher.Interfaces;
@@ -73,5 +75,12 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             _systemFans.Clear();
         }
+
+#nullable enable
+        public override IEnumerator? GetEnumerator<T>()
+        {
+            return (typeof(T) is ISystemFanDataContract) ? _systemFans.GetEnumerator() : (IEnumerator?)null;
+        }
+#nullable disable
     }
 }

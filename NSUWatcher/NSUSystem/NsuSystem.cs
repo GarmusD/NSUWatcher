@@ -184,6 +184,16 @@ namespace NSUWatcher.NSUSystem
             _logger.LogTrace("StopAsync(). Do nothing.");
             return Task.CompletedTask;
         }
+
+        public IEnumerator<T> GetData<T>() where T : INSUSysPartDataContract
+        {
+            foreach(var part in _nsuParts)
+            {
+                var e = part.GetEnumerator<T>();
+                if (e != null) return (IEnumerator<T>)e;
+            }
+            return null;
+        }
     }
 }
 

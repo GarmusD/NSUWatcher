@@ -10,6 +10,7 @@ using System.CommandLine.Parsing;
 using NSU.Shared.DTO.ExtCommandContent;
 using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
+using System.Collections;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -276,6 +277,11 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     }
                 }
             }
+        }
+
+        public override IEnumerator GetEnumerator<T>()
+        {
+            return null;
         }
 
         private class UserConsole : IConsole

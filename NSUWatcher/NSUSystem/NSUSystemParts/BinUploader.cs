@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -406,5 +407,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             ///SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
         }
 
+        public override IEnumerator GetEnumerator<T>()
+        {
+            return null;
+        }
     }
 }

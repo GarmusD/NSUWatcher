@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using Microsoft.Extensions.Logging;
 using NSU.Shared;
 using NSU.Shared.DTO.ExtCommandContent;
@@ -63,6 +64,11 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     return null;
             }
             LogNotImplementedCommand(command);
+            return null;
+        }
+
+        public override IEnumerator GetEnumerator<T>()
+        {
             return null;
         }
     }
