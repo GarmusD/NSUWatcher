@@ -34,7 +34,7 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
                 new NsuSysMsgProcessor(cmdCenter)
             };
 
-            _nsuSystem.StatusChanged += NsuSystem_StatusChanged;
+            _nsuSystem.EntityStatusChanged += NsuSystem_StatusChanged;
         }
 
         public INetMessage ProcessNetMessage(INetMessage message)
