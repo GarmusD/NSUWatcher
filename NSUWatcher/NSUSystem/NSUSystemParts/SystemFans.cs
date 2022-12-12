@@ -77,9 +77,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         }
 
 #nullable enable
-        public override IEnumerator? GetEnumerator<T>()
+        public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is ISystemFanDataContract) ? _systemFans.GetEnumerator() : (IEnumerator?)null;
+            return (typeof(T) is ISystemFanDataContract) ? _systemFans : (IEnumerable?)null;
         }
 #nullable disable
     }

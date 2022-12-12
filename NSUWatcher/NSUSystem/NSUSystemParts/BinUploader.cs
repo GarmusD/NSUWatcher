@@ -407,7 +407,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             ///SendToClient(NetClientRequirements.CreateStandartClientOnly(_clientData), jo);
         }
 
-        public override IEnumerator GetEnumerator<T>()
+        public override IEnumerable GetEnumerator<T>()
         {
             return null;
         }

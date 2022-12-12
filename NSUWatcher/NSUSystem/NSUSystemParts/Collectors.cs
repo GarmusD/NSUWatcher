@@ -82,9 +82,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             _collectors.Clear();
         }
 #nullable enable
-        public override IEnumerator? GetEnumerator<T>()
+        public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is ICollectorDataContract) ? _collectors.GetEnumerator() : (IEnumerator?)null;
+            return (typeof(T) is ICollectorDataContract) ? _collectors : (IEnumerable?)null;
         }
 #nullable disable
     }

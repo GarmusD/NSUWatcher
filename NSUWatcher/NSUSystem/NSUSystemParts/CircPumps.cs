@@ -112,9 +112,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         }
 
 #nullable enable
-        public override IEnumerator? GetEnumerator<T>()
+        public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is ICircPumpDataContract) ? _circPumps.GetEnumerator() : (IEnumerator?)null;
+            return (typeof(T) is ICircPumpDataContract) ? _circPumps : (IEnumerable?)null;
         }
 #nullable disable
     }

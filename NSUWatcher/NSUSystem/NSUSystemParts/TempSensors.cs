@@ -159,9 +159,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         }
 
 #nullable enable
-        public override IEnumerator? GetEnumerator<T>()
+        public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is ITempSensorDataContract) ? _sensors.GetEnumerator() : (IEnumerator?)null;
+            return (typeof(T) is ITempSensorDataContract) ? _sensors : (IEnumerable?)null;
         }
 #nullable disable
     }

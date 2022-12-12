@@ -111,9 +111,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             _comfZones.Clear();
         }
 #nullable enable
-        public override IEnumerator? GetEnumerator<T>()
+        public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is IComfortZoneDataContract) ? _comfZones.GetEnumerator() : (IEnumerator?)null;
+            return (typeof(T) is IComfortZoneDataContract) ? _comfZones : (IEnumerable?)null;
         }
 #nullable disable
     }

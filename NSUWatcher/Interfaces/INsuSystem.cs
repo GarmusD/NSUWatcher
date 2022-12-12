@@ -5,29 +5,29 @@ using System.ComponentModel;
 
 namespace NSUWatcher.Interfaces
 {
+#nullable enable
     public interface INsuSystem
     {
-        event EventHandler<PropertyChangedEventArgs> StatusChanged;
-        IEnumerator<T> GetData<T>() where T : INSUSysPartDataContract;
-    }
-/*    
-    public enum ChangedProperty
-    { 
-        Status,
-        Temperature,
-        MCUStatus
+        event EventHandler<SystemStatusChangedEventArgs> SystemStatusChanged;
+        event EventHandler<PropertyChangedEventArgs> EntityStatusChanged;
+        NsuSystemStatus CurrentStatus { get; }
+        IEnumerable<T>? GetEntityData<T>() where T : INSUSysPartDataContract;
     }
 
-    public class PropertyChangedEventArgs 
+    public enum NsuSystemStatus
     {
-        public INSUSysPartDataContract Source { get; }
-        public ChangedProperty Property { get; }
+        NotReady,
+        Ready
+    }
 
-        public PropertyChangedEventArgs(INSUSysPartDataContract source, ChangedProperty property)
+    public class SystemStatusChangedEventArgs
+    {
+        public NsuSystemStatus State { get; }
+
+        public SystemStatusChangedEventArgs(INsuSystem source, NsuSystemStatus state)
         {
-            Source = source;
-            Property = property;
+            State = state;
         }
     }
-*/
+#nullable disable    
 }

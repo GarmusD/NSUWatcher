@@ -279,7 +279,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        public override IEnumerator GetEnumerator<T>()
+        public override IEnumerable GetEnumerator<T>()
         {
             return null;
         }
