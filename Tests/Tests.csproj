@@ -179,6 +179,7 @@
     <Compile Include="CmdCenter\McuCommands\From\TSensor.cs" />
     <Compile Include="CmdCenter\McuCommands\From\WaterBoiler.cs" />
     <Compile Include="CmdCenter\McuCommands\From\WoodBoiler.cs" />
+    <Compile Include="InfluxService\TSensorValueStrategy.cs" />
     <Compile Include="Transport\Serial.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
