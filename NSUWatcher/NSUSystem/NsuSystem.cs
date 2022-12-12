@@ -21,8 +21,10 @@ namespace NSUWatcher.NSUSystem
 {
     public class NsuSystem : INsuSystem, IHostedService
     {   
-        public event EventHandler<PropertyChangedEventArgs> StatusChanged;
-
+        public event EventHandler<PropertyChangedEventArgs> EntityStatusChanged;
+        public event EventHandler<SystemStatusChangedEventArgs> SystemStatusChanged;
+        
+        public NsuSystemStatus CurrentStatus => _isReady ? NsuSystemStatus.Ready : NsuSystemStatus.NotReady;
         public NsuSysConfig Config => _config;
         public bool IsReady => _isReady;
         public ICmdCenter CmdCenter { get => _iCmdCenter; set => _iCmdCenter = value; }
@@ -30,6 +32,7 @@ namespace NSUWatcher.NSUSystem
         
         public NSUXMLConfig XMLConfig { get; }
 
+        
 
         private ICmdCenter _iCmdCenter;
         private readonly ILogger _logger;
@@ -129,7 +132,7 @@ namespace NSUWatcher.NSUSystem
         internal void OnStatusChanged(INSUSysPartDataContract source, string property)
         {
             _logger.LogDebug($"Emiting StatusChanged event for: {source.GetType().Name} - {property}");
-            var evt = StatusChanged;
+            var evt = EntityStatusChanged;
             evt?.Invoke(source, new PropertyChangedEventArgs(property));
         }
 
@@ -184,16 +187,17 @@ namespace NSUWatcher.NSUSystem
             _logger.LogTrace("StopAsync(). Do nothing.");
             return Task.CompletedTask;
         }
-
-        public IEnumerator<T> GetData<T>() where T : INSUSysPartDataContract
+#nullable enable
+        public IEnumerable<T>? GetEntityData<T>() where T : INSUSysPartDataContract
         {
             foreach(var part in _nsuParts)
             {
                 var e = part.GetEnumerator<T>();
-                if (e != null) return (IEnumerator<T>)e;
+                if (e != null) return (IEnumerable<T>)e;
             }
             return null;
         }
+#nullable disable
     }
 }
 
