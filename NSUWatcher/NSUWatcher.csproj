@@ -541,7 +541,14 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Logger\Serilog\NsuConsoleMessage.cs" />
     <Compile Include="Logger\Serilog\NsuConsoleSink.cs" />
+    <Compile Include="Services\InfluxDB\AverageValueStrategy.cs" />
+    <Compile Include="Services\InfluxDB\Config.cs" />
+    <Compile Include="Services\InfluxDB\DataEntity.cs" />
     <Compile Include="Services\InfluxDB\InfluxDBService.cs" />
+    <Compile Include="Services\InfluxDB\LastValueStrategy.cs" />
+    <Compile Include="Services\InfluxDB\MaxValueStrategy.cs" />
+    <Compile Include="Services\InfluxDB\TemperatureSensorEntity.cs" />
+    <Compile Include="Services\InfluxDB\ValueStrategy.cs" />
     <Compile Include="Transport\Serial\Config\RebootMcuConfig.cs" />
     <Compile Include="Transport\Serial\Config\SerialConfig.cs" />
     <Compile Include="Transport\Serial\SerialTransport.cs" />
