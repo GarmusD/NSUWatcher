@@ -112,7 +112,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 #nullable enable
         public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is IWoodBoilerDataContract) ? _boilers : (IEnumerable?)null;
+            return typeof(WoodBoiler).GetInterfaces().Contains(typeof(T)) ? _boilers : (IEnumerable?)null;
         }
 #nullable disable
     }

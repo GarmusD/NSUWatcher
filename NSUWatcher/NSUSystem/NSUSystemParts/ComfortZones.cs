@@ -113,7 +113,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 #nullable enable
         public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is IComfortZoneDataContract) ? _comfZones : (IEnumerable?)null;
+            return typeof(ComfortZone).GetInterfaces().Contains(typeof(T)) ? _comfZones : (IEnumerable?)null;
         }
 #nullable disable
     }

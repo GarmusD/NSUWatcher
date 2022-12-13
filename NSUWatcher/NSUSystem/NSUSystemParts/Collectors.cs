@@ -84,7 +84,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 #nullable enable
         public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is ICollectorDataContract) ? _collectors : (IEnumerable?)null;
+            return typeof(Collector).GetInterfaces().Contains(typeof(T)) ? _collectors : (IEnumerable?)null;
         }
 #nullable disable
     }

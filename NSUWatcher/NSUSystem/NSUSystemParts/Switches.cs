@@ -89,7 +89,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 #nullable enable
         public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is ISwitchDataContract) ? _switches : (IEnumerable?)null;
+            return typeof(Switch).GetInterfaces().Contains(typeof(T)) ? _switches : (IEnumerable?)null;
         }
 #nullable disable
     }

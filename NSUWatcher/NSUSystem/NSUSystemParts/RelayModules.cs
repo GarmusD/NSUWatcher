@@ -10,6 +10,7 @@ using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
 using System.Collections;
 using NSU.Shared.DataContracts;
+using System.Linq;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -78,7 +79,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 #nullable enable
         public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is IRelayModuleDataContract) ? _modules : (IEnumerable?)null;
+            return typeof(RelayModule).GetInterfaces().Contains(typeof(T)) ? _modules : (IEnumerable?)null;
         }
 #nullable disable
     }

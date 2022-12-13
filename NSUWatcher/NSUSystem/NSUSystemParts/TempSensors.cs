@@ -45,7 +45,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         bool IsAddrValid(byte[] addr)
         {
-            return !addr.All(x => x == 0);
+            return !TempSensor.IsAddressNull(addr);
         }
 
         private byte GetFirstFreeConfigID()
@@ -85,6 +85,10 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         {
             switch (command)
             {
+                case ITSensorInfo tSensorInfo:
+                    ProcessInfo(tSensorInfo);
+                    return true;
+
                 case ITSensorSystemSnapshot systemSnapshot:
                     ProcessSystemSnapshot(systemSnapshot);
                     return true;
@@ -92,9 +96,9 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                 case ITSensorConfigSnapshot configSnapshot:
                     ProcessConfigSnapshot(configSnapshot);
                     return true;
-                
-                case ITSensorInfo tSensorInfo:
-                    ProcessInfo(tSensorInfo);
+
+                case ISystemSnapshotDone _:
+                    UpdateConfigIDs();
                     return true;
 
                 default:
@@ -117,24 +121,25 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private void ProcessConfigSnapshot(ITSensorConfigSnapshot configSnapshot)
         {
-            var ts = FindSensor(TempSensor.StringToAddr(configSnapshot.Address));//NullAddress sensors is filtered here
-            if (ts == null)
+            byte[] sensorAddr = TempSensor.StringToAddr(configSnapshot.Address);
+            if (IsAddrValid(sensorAddr))
             {
-                ts = new TempSensor();
-                ts.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
-                if (!TempSensor.IsAddressNull(ts))
-                    ts.NotFound = true;
-                AddSensor(ts);
+                var ts = FindSensor(sensorAddr);
+                if (ts == null)
+                {
+                    ts = new TempSensor();
+                    ts.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
+                    if (!TempSensor.IsAddressNull(ts))
+                        ts.NotFound = true;
+                    AddSensor(ts);
+
+                }
+                ts.ConfigPos = configSnapshot.ConfigPos;
+                ts.Enabled = configSnapshot.Enabled;
+                ts.SensorID = TempSensor.StringToAddr(configSnapshot.Address);
+                ts.Name = configSnapshot.Name;
+                ts.Interval = configSnapshot.Interval;
             }
-            else
-            {
-                ts.NotFound = false;
-            }
-            ts.ConfigPos = configSnapshot.ConfigPos;
-            ts.Enabled = configSnapshot.Enabled;
-            ts.SensorID = TempSensor.StringToAddr(configSnapshot.Address);
-            ts.Name = configSnapshot.Name;
-            ts.Interval = configSnapshot.Interval;
         }
         
         private void ProcessInfo(ITSensorInfo tSensorInfo)
@@ -161,7 +166,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 #nullable enable
         public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is ITempSensorDataContract) ? _sensors : (IEnumerable?)null;
+            return typeof(TempSensor).GetInterfaces().Contains(typeof(T)) ? _sensors : (IEnumerable?)null;
         }
 #nullable disable
     }

@@ -75,7 +75,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 #nullable enable
         public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is ITempTriggerDataContract) ? _triggers : (IEnumerable?)null;
+            return typeof(TempTrigger).GetInterfaces().Contains(typeof(T)) ? _triggers : (IEnumerable?)null;
         }
 #nullable disable
     }

@@ -9,6 +9,7 @@ using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
 using System.Collections;
 using NSU.Shared.DataContracts;
+using System.Linq;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -50,7 +51,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 #nullable enable
         public override IEnumerable? GetEnumerator<T>()
         {
-            return (typeof(T) is IWaterBoilerDataContract) ? _boilers : (IEnumerable?)null;
+            return typeof(WaterBoiler).GetInterfaces().Contains(typeof(T)) ? _boilers : (IEnumerable?)null;
         }
 #nullable disable
     }
