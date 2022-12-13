@@ -103,7 +103,6 @@ namespace NSUWatcher.NSUSystem
         {
             try
             {
-                _logger.LogTrace($"CmdCenter_McuMessageReceived(): {e.Message.GetType().Name}");
                 foreach (var nsuPart in _nsuParts)
                 {
                     if (nsuPart.ProcessCommandFromMcu(e.Message))
@@ -139,6 +138,8 @@ namespace NSUWatcher.NSUSystem
         internal void SetReady(bool isReady)
         {
             _isReady = isReady;
+            _logger.LogDebug($"Changing status to IsReady:{_isReady}");
+            SystemStatusChanged?.Invoke(this, new SystemStatusChangedEventArgs(_isReady ? NsuSystemStatus.Ready : NsuSystemStatus.NotReady));
         }
 
         private void CreateParts(ILoggerFactory loggerFactory)
