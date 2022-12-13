@@ -17,6 +17,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using NSUWatcher.Transport.TestTransport;
 using NSUWatcher.NSUWatcherNet;
+using NSUWatcher.Services.InfluxDB;
 
 namespace NSUWatcher
 {
@@ -279,6 +280,7 @@ namespace NSUWatcher
                         .AddHostedService(s => s.GetRequiredService<TestTransport>());
                     }
                     services
+                        .AddHostedService<InfluxDBService>()
                         .AddHostedService<NSUWorker>()
                         .AddHostedService<WatcherNet>();
                     logger.Verbose("Adding singletons and serivces... Done.");
