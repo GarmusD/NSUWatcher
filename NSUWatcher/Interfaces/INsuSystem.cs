@@ -24,7 +24,7 @@ namespace NSUWatcher.Interfaces
     {
         public NsuSystemStatus State { get; }
 
-        public SystemStatusChangedEventArgs(INsuSystem source, NsuSystemStatus state)
+        public SystemStatusChangedEventArgs(NsuSystemStatus state)
         {
             State = state;
         }
