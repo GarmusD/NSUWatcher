@@ -10,20 +10,23 @@ using NSU.Shared.NSUSystemPart;
 using NSUWatcher.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace NSUWatcher.Services.InfluxDB
 {
 #nullable enable
+    /// <summary>
+    /// A BackgroundService to write temperature and status data to InfluxDB
+    /// </summary>
     public class InfluxDBService : BackgroundService
     {
         private readonly InfluxDBClient? _influxDbClient = null;
         private readonly ILogger _logger;
         private readonly INsuSystem _nsuSys;
-
-        private readonly string? _bucket;
-        private readonly string? _org;
+        private readonly Config? _config;
         private readonly System.Timers.Timer? _oneMinuteTimer = null;
         private readonly List<TemperatureSensorEntity> _sensorEntities = new List<TemperatureSensorEntity>();
 
@@ -32,18 +35,17 @@ namespace NSUWatcher.Services.InfluxDB
             _logger = loggerFactory.CreateLoggerShort<InfluxDBService>() ?? NullLoggerFactory.Instance.CreateLoggerShort<InfluxDBService>();
             _nsuSys = nsuSystem;
 
-            string? token = configuration["InfluxDB:token"];
-            string? url = configuration["InfluxDB:url"];
-            _bucket = configuration["InfluxDB:bucket"];
-            _org = configuration["InfluxDB:org"];
-
-            if (!ValidateConfig(token))
+            _config = configuration.GetSection("InfluxDB").Get<Config>();
+            if (!ValidateConfig())
             {
                 _logger.LogWarning("InfluxDB is not configured and will not run. Required values in 'InfluxDB' section is: 'url', 'token', 'bucket' and 'org'.");
                 return;
             }
-
-            _influxDbClient = new InfluxDBClient(url, token);
+            _logger.LogDebug($"Using token: {_config.Token}");
+            _logger.LogDebug($"Using url: {_config.Url}");
+            _logger.LogDebug($"Using bucket: {_config.Bucket}");
+            _logger.LogDebug($"Using org: {_config.Org}");
+            _influxDbClient = new InfluxDBClient(_config!.Url, _config!.Token);
             
             _oneMinuteTimer = new System.Timers.Timer(TimeSpan.FromMinutes(1).TotalMilliseconds);
             _oneMinuteTimer.Elapsed += (s, e) => 
@@ -52,23 +54,13 @@ namespace NSUWatcher.Services.InfluxDB
             };
         }
 
-        private bool ValidateConfig(string? token)
+        private bool ValidateConfig()
         {
-            return !string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(_bucket) && !string.IsNullOrEmpty(_org);
-        }
-
-        private PointData GetTempSensorPointData(TemperatureSensorEntity tempSensorData)
-        {
-            return PointData
-                .Measurement("temperature")
-                .Tag("name", tempSensorData.SensorName)
-                .Tag("id", tempSensorData.SensorID)
-                .Tag("type", tempSensorData.SensorType.ToString())
-                .Field("temp", tempSensorData.Temperature)
-                .Field("hum", tempSensorData.Humidity)
-                .Field("pre", tempSensorData.Pressure)
-                .Timestamp(DateTime.Now, WritePrecision.S)
-                ;
+            return 
+                _config != null && 
+                !string.IsNullOrEmpty(_config.Token) && 
+                !string.IsNullOrEmpty(_config.Bucket) && 
+                !string.IsNullOrEmpty(_config.Org);
         }
 
         private void ReloadEntityData()
@@ -82,7 +74,8 @@ namespace NSUWatcher.Services.InfluxDB
                     { 
                         SensorName = data.Name,
                         SensorType = DataEntityType.DS18B20,
-                        SensorID = TempSensor.AddrToString(data.SensorID)
+                        SensorID = TempSensor.AddrToString(data.SensorID),
+                        Timing = _config!.Timing.TSensor
                     });
                 }
             var ktypeData = _nsuSys.GetEntityData<IKTypeDataContract>();
@@ -92,7 +85,8 @@ namespace NSUWatcher.Services.InfluxDB
                     _sensorEntities.Add(new TemperatureSensorEntity(data.Temperature)
                     {
                         SensorName = data.Name,
-                        SensorType = DataEntityType.KType
+                        SensorType = DataEntityType.KType,
+                        Timing = _config!.Timing.TSensor
                     });
                 }
             _logger.LogDebug($"ReloadEntityData(): SensorEntities: {_sensorEntities.Count}");
@@ -131,33 +125,53 @@ namespace NSUWatcher.Services.InfluxDB
         {
             return Task.Run(() => 
             {
+                int writesCount = 0;
                 using var writeApi = _influxDbClient?.GetWriteApi();
                 foreach (var sensorEntity in _sensorEntities)
                 {
-                    if(sensorEntity.Timing % minute == 0)
+                    if (minute % sensorEntity.Timing == 0)
                     {
                         var pointData = GetTempSensorPointData(sensorEntity);
                         try
                         {
-                            writeApi?.WritePoint(pointData, bucket: _bucket, org: _org);
+                            writesCount++;
+                            writeApi?.WritePoint(pointData, bucket: _config!.Bucket, org: _config!.Org);
                         }
-                        catch(Exception ex)
+                        catch (Exception ex)
                         {
                             _logger.LogError($"WriteDataAsync(): {ex.Message}");
                         }
-                    }    
-                }   
+                    }
+                }
+
+                _logger.LogDebug($"WriteDataAsync() done with {writesCount} writes.");
             });
         }
 
-        private async Task CalibrateMinute(CancellationToken cancellationToken)
+        private PointData GetTempSensorPointData(TemperatureSensorEntity tempSensorData)
+        {
+            var data = PointData
+                .Measurement("tphsensor")
+                .Tag("name", tempSensorData.SensorName)
+                .Tag("id", tempSensorData.SensorID)
+                .Tag("type", tempSensorData.SensorType.ToString())
+                .Field("temperature", tempSensorData.Temperature)
+                .Field("humidity", tempSensorData.Humidity)
+                .Field("pressure", tempSensorData.Pressure)
+                .Timestamp(DateTime.UtcNow, WritePrecision.S)
+                ;
+            return data;
+        }
+
+        private async Task CalibrateToMinuteStart(CancellationToken cancellationToken)
         {
             try
             {
                 DateTime now = DateTime.Now;
                 DateTime awaitTo = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute + 1, 0, 100);
                 await Task.Delay((int)(awaitTo - now).TotalMilliseconds, cancellationToken);
-                _oneMinuteTimer!.Enabled = true;
+                _oneMinuteTimer!.Start();
+                _ = WriteDataAsync(DateTime.Now.Minute);
             }
             catch (OperationCanceledException) { }
         }
@@ -167,7 +181,7 @@ namespace NSUWatcher.Services.InfluxDB
             if (_influxDbClient == null) return;
             _logger.LogDebug("ExecuteAsync()");
              
-            _ = CalibrateMinute(stoppingToken);
+            _ = CalibrateToMinuteStart(stoppingToken);
             _nsuSys.SystemStatusChanged += ((s, e) => ReloadEntityData());
             if (_nsuSys.CurrentStatus == NsuSystemStatus.Ready)
                 ReloadEntityData();
@@ -178,6 +192,7 @@ namespace NSUWatcher.Services.InfluxDB
             var reg = stoppingToken.Register(() => completionSource.SetResult(true));
             await Task.WhenAny(completionSource.Task);
 
+            _oneMinuteTimer?.Stop();
             _logger.LogTrace("ExecuteAsync() Done.");
         }
     }
