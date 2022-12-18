@@ -4,7 +4,8 @@ using NSUWatcher.Interfaces.MCUCommands;
 
 namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.TempSensor
 {
-    public struct SetupTempSensorData : ICommandToMcuData
+#nullable enable
+    public readonly struct SetupTempSensorData : ICommandToMcuData
     {
         [JsonProperty(JKeys.Generic.Enabled)]
         public bool Enabled { get; }
@@ -16,12 +17,14 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.TempSe
         public int Interval { get; }
         [JsonProperty(JKeys.Generic.ConfigPos)]
         public int ConfigPos { get; }
-
+        [JsonProperty(JKeys.Generic.Target)]
         public string Target { get; }
-
+        [JsonProperty(JKeys.Generic.Action)]
         public string Action { get; }
+        [JsonProperty(JKeys.Generic.CommandID)]
+        public string? CommandId { get; }
 
-        public SetupTempSensorData(int configPos, bool enabled, string name, string address, int interval)
+        public SetupTempSensorData(int configPos, bool enabled, string name, string address, int interval, string? commandId)
         {
             Target = JKeys.TempSensor.TargetName;
             Action = JKeys.Generic.Setup;
@@ -30,6 +33,8 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.TempSe
             Enabled = enabled;
             Name = name;
             Address = address;
+            CommandId = commandId;
         }
     }
+#nullable disable
 }

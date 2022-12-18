@@ -6,6 +6,7 @@ using NSU.Shared;
 
 namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1
 {
+#nullable enable
     public class SystemCommands : IToMcuSystemCommands
     {
         private readonly Action<string> _defaultSendAction;
@@ -35,9 +36,10 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1
             return new CommandToMCU<EmptyCommand>( _defaultSendAction, new EmptyCommand(JKeys.Syscmd.Snapshot));
         }
 
-        public ICommandToMCU SetTime(int year, int month, int day, int hour, int minute, int second)
+        public ICommandToMCU SetTime(int year, int month, int day, int hour, int minute, int second, string? commandId)
         {
-            return new CommandToMCU<SetTimeData>(_defaultSendAction, new SetTimeData(year, month, day, hour, minute, second));
+            return new CommandToMCU<SetTimeData>(_defaultSendAction, new SetTimeData(year, month, day, hour, minute, second, commandId));
         }
     }
+#nullable disable
 }

@@ -4,7 +4,8 @@ using NSUWatcher.Interfaces.MCUCommands;
 
 namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.CircPump
 {
-    public struct ClickedData : ICommandToMcuData
+#nullable enable
+    public readonly struct ClickedData : ICommandToMcuData
     {
         [JsonProperty(JKeys.Generic.Target)]
         public string Target { get; }
@@ -13,11 +14,16 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.CircPu
         [JsonProperty(JKeys.Generic.Name)]
         public string Name { get; }
 
-        internal ClickedData(string name)
+        [JsonProperty(JKeys.Generic.CommandID)]
+        public string? CommandId { get; }
+
+        internal ClickedData(string name, string? commandId = null)
         {
             Target = JKeys.CircPump.TargetName;
             Action = JKeys.CircPump.ActionClick;
+            CommandId = commandId;
             Name = name;
         }
     }
+#nullable disable
 }

@@ -4,7 +4,8 @@ using NSUWatcher.Interfaces.MCUCommands;
 
 namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.System
 {
-    public struct SetTimeData : ICommandToMcuData
+#nullable enable
+    public readonly struct SetTimeData : ICommandToMcuData
     {
         [JsonProperty(JKeys.Generic.Target)]
         public string Target { get; }
@@ -23,7 +24,10 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.System
         [JsonProperty(JKeys.Syscmd.Second)]
         public int Second { get; }
 
-        public SetTimeData(int year, int month, int day, int hourt, int minute, int second)
+        [JsonProperty(JKeys.Generic.CommandID)]
+        public string? CommandId { get; }
+
+        public SetTimeData(int year, int month, int day, int hourt, int minute, int second, string? commandId)
         {
             Target = JKeys.Syscmd.TargetName;
             Action = JKeys.Syscmd.SetTime;
@@ -33,6 +37,8 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.System
             Hour = hourt;
             Minute = minute;
             Second = second;
+            CommandId = commandId;
         }
     }
+#nullable disable
 }
