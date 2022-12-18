@@ -1,8 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using NSUWatcher.Interfaces.MCUCommands;
-using System.Threading.Tasks;
-using System.Threading;
+using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.Interfaces
 {
@@ -16,10 +14,6 @@ namespace NSUWatcher.Interfaces
         IMcuMessageTransport MessageTransport { get; set; }
         IMcuCommands MCUCommands { get; }
         IExternalCommands ExternalCommands { get; }
-
-        //Task StartAsync(CancellationToken cancellationToken);
-        //Task StopAsync(CancellationToken cancellationToken);
-        //public void ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, Action<IExternalCommandResult, object> onCommandResult, object context);
         IExternalCommandResult ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, object context);
         void ExecManualCommand(string command);
     }
@@ -51,20 +45,6 @@ namespace NSUWatcher.Interfaces
             Message = message;
         }
     }
-    /*public class ExternalCommandEventArgs : EventArgs
-    {
-        public IExternalCommand Command { get; }
-        public INsuUser NsuUser { get; }
-        public Action<IExternalCommandResult, object> OnCommandResult { get; }
-        public object Context { get; }
-        public ExternalCommandEventArgs(IExternalCommand command, INsuUser nsuUser, Action<IExternalCommandResult, object> onCommandResult, object context)
-        {
-            Command = command;
-            NsuUser = nsuUser;
-            OnCommandResult = onCommandResult;
-            Context = context;
-        }
-    }*/
 
     public class ExternalCommandEventArgs : EventArgs
     {
