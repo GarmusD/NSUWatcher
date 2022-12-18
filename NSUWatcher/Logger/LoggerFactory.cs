@@ -24,11 +24,11 @@ namespace NSUWatcher.Logger
             return Log.Logger;
         }
 
-        public static ILogger CreateWithConsole(IConfigurationRoot config)
+        public static ILogger CreateWithConsole(IConfigurationRoot config, global::Serilog.Events.LogEventLevel logLevel = global::Serilog.Events.LogEventLevel.Verbose)
         {
             var loggerConf = CreateDefaultConfiguration(config);
             //loggerConf.WriteTo.Console(levelSwitch: ConsoleLevelSwitch);
-            loggerConf.WriteTo.Console(restrictedToMinimumLevel: global::Serilog.Events.LogEventLevel.Verbose, outputTemplate: OutputTemplate);
+            loggerConf.WriteTo.Console(restrictedToMinimumLevel: logLevel, outputTemplate: OutputTemplate);
             Log.Logger = loggerConf.CreateLogger();
             return Log.Logger;
         }
