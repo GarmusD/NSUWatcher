@@ -18,6 +18,8 @@ using Microsoft.Extensions.Logging;
 using NSUWatcher.Transport.TestTransport;
 using NSUWatcher.NSUWatcherNet;
 using NSUWatcher.Services.InfluxDB;
+using NSUWatcher.Interfaces.NsuUsers;
+using NSUWatcher.Db;
 
 namespace NSUWatcher
 {
@@ -143,7 +145,7 @@ namespace NSUWatcher
             userCmdRemove.SetHandler(
                 (userValue) =>
                 {
-                    ExecCommandRemoveUser(userValue, config, Logger.LoggerFactory.CreateWithConsole(config));
+                    ExecCommandRemoveUser(userValue, config, Logger.LoggerFactory.CreateWithConsole(config, Serilog.Events.LogEventLevel.Information));
                 },
                 optionRemoveUser);
             return userCmdRemove;
@@ -164,7 +166,7 @@ namespace NSUWatcher
             userCmdAdd.SetHandler(
                 (userValue, passwordValue, isAdminValue) =>
                 {
-                    ExecCommandAddUser(userValue, passwordValue, isAdminValue, config, Logger.LoggerFactory.CreateWithConsole(config));
+                    ExecCommandAddUser(userValue, passwordValue, isAdminValue, config, Logger.LoggerFactory.CreateWithConsole(config, Serilog.Events.LogEventLevel.Information));
                 },
                 optionAddUserName, optionAddPassword, argumentIsAdmin
             );
@@ -214,13 +216,17 @@ namespace NSUWatcher
         private static void CreateUser(string userName, string password, bool isAdmin, Serilog.ILogger logger)
         {
             logger.Information($"Creating user '{userName}'. IsAdmin: {isAdmin}");
-            throw new NotImplementedException();
+            NsuWatcherDbContext dbContext = new NsuWatcherDbContext(null);
+            string result = dbContext.NsuUsersDbContext.CreateUser(userName, password, isAdmin);
+            logger.Information(result);
         }
 
         private static void DeleteUser(string userName, Serilog.ILogger logger)
         {
             logger.Information($"Deleting user '{userName}':");
-            throw new NotImplementedException();
+            NsuWatcherDbContext dbContext = new NsuWatcherDbContext(null);
+            string result = dbContext.NsuUsersDbContext.DeleteUser(userName);
+            logger.Information(result);
         }
 
         /*
@@ -247,7 +253,8 @@ namespace NSUWatcher
                 {
                     logger.Verbose("Adding singletons and serivces...");
                     services
-                        .AddSingleton<INsuUsers, NSUUsers>();
+                        .AddSingleton<NSUUsers>()
+                        .AddSingleton<INsuUsers>(s => s.GetRequiredService<NSUUsers>());
                     if (Environment.OSVersion.Platform == PlatformID.Unix)
                     {
                         services
@@ -302,7 +309,7 @@ namespace NSUWatcher
         {
             try
             {
-                global::NSUWatcher.Logger.LoggerFactory.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
+                Logger.LoggerFactory.ConsoleLevelSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Debug;
                 logger.Information($"NSUWatcher is running on {Environment.OSVersion.VersionString}.");
                 logger.Information("NSUWatcher is running in console mode.");
                 logger.Information("Enter 'q' or Ctrl+C to quit.");
