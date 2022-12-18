@@ -13,6 +13,7 @@ using NSU.Shared.DTO.ExtCommandContent;
 using NSU.Shared.Serializer;
 using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.MCUCommands;
+using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {

@@ -8,8 +8,8 @@ using NSU.Shared;
 using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
 using System.Collections;
-using NSU.Shared.DataContracts;
 using System.Linq;
+using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {

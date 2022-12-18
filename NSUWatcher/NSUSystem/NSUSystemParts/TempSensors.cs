@@ -9,7 +9,7 @@ using NSUWatcher.Interfaces;
 using NSU.Shared;
 using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
-using NSU.Shared.DataContracts;
+using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {

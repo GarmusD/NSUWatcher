@@ -11,6 +11,7 @@ using NSU.Shared.DTO.ExtCommandContent;
 using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
 using System.Collections;
+using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {

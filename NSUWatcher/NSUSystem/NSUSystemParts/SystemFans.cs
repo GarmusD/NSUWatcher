@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using NSU.Shared;
-using NSU.Shared.DataContracts;
 using NSU.Shared.NSUSystemPart;
 using NSU.Shared.Serializer;
 using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.From;
+using NSUWatcher.Interfaces.NsuUsers;
 using NSUWatcher.NSUSystem.Data;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts

@@ -10,6 +10,7 @@ using NSU.Shared;
 using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
 using System.Collections;
+using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -194,7 +195,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             _logger.LogInformation("Setting time for MCU...");
             DateTime dt = DateTime.Now;
             _nsuSys.CmdCenter.MCUCommands.ToMcu.SystemCommands
-                .SetTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second)
+                .SetTime(dt.Year, dt.Month, dt.Day, dt.Hour, dt.Minute, dt.Second, null)
                 .Send();
         }
 
