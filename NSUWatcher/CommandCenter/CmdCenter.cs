@@ -9,6 +9,7 @@ using Timer = System.Timers.Timer;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.CommandCenter
 {
