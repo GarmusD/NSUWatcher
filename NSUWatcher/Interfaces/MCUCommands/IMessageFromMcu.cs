@@ -4,7 +4,7 @@
     public interface IMessageFromMcu
     {
         //string Source { get; set; }
-        //string? CommandID { get; set; }
+        string? CommandID { get; set; }
     }
 #nullable disable
 }

@@ -3,12 +3,13 @@ using NSU.Shared;
 
 namespace NSUWatcher.Interfaces.MCUCommands
 {
+#nullable enable
     // Empty interface to declare McuData
     public interface ICommandToMcuData
     {
-        [JsonProperty(JKeys.Generic.Target)]
         string Target { get; }
-        [JsonProperty(JKeys.Generic.Action)]
         string Action { get; }
+        string? CommandId { get; }
     }
+#nullable disable
 }
