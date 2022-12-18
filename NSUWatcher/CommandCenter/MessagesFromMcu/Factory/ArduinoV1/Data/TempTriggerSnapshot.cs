@@ -21,6 +21,9 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         
         [JsonProperty(JKeys.Generic.Status)]
         public string? Status { get; set; }
+
+        [JsonProperty(JKeys.Generic.CommandID)]
+        public string? CommandID { get; set; }
     }
 #nullable disable
 

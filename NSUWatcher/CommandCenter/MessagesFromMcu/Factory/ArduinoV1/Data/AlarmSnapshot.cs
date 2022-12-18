@@ -4,6 +4,7 @@ using NSUWatcher.Interfaces.MCUCommands.From;
 
 namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
 {
+#nullable enable
     public class AlarmSnapshot : IAlarmSnapshot
     {
         [JsonProperty(JKeys.Generic.ConfigPos)]
@@ -23,6 +24,9 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         
         [JsonProperty(JKeys.Generic.Value)]
         public bool? IsAlarming { get; set; }
+
+        [JsonProperty(JKeys.Generic.CommandID)]
+        public string? CommandID { get; set; }
     }
 
     public class AlarmChannel : IAlarmChannel
@@ -33,4 +37,5 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         [JsonProperty(JKeys.Alarm.IsOpen)]
         public bool IsOpen { get; set; }
     }
+#nullable disable
 }

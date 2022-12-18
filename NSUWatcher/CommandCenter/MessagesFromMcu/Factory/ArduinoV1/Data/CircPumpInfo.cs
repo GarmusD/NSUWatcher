@@ -14,16 +14,16 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         public string Status { get; set; } = string.Empty;
         
         [JsonProperty(JKeys.CircPump.CurrentSpeed)]
-        public int CurrentSpeed { get; set; }
+        public byte CurrentSpeed { get; set; }
         
         [JsonProperty(JKeys.CircPump.ValvesOpened)]
-        public int ValvesOpened { get; set; }
+        public byte ValvesOpened { get; set; }
         
         //[JsonProperty(JKeys.Generic.Source)]
         //public string Source { get; set; } = string.Empty;
         
-        //[JsonProperty(JKeys.Generic.CommandID)]
-        //public string? CommandID { get; set; }
+        [JsonProperty(JKeys.Generic.CommandID)]
+        public string? CommandID { get; set; }
     }
 #nullable disable
 }

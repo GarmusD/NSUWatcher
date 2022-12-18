@@ -17,16 +17,16 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         public string Name { get; set; } = string.Empty;
         
         [JsonProperty(JKeys.CircPump.MaxSpeed)]
-        public int MaxSpeed { get; set; }
+        public byte MaxSpeed { get; set; }
         
         [JsonProperty(JKeys.CircPump.Speed1Ch)]
-        public int Speed1Ch { get; set; }
+        public byte Speed1Ch { get; set; }
         
         [JsonProperty(JKeys.CircPump.Speed2Ch)]
-        public int Speed2Ch { get; set; }
+        public byte Speed2Ch { get; set; }
         
         [JsonProperty(JKeys.CircPump.Speed3Ch)]
-        public int Speed3Ch { get; set; }
+        public byte Speed3Ch { get; set; }
         
         [JsonProperty(JKeys.CircPump.TempTriggerName)]
         public string TempTriggerName { get; set; } = string.Empty;
@@ -35,16 +35,16 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         public string Status { get; set; } = string.Empty;
         
         [JsonProperty(JKeys.CircPump.CurrentSpeed)]
-        public int? CurrentSpeed { get; set; }
+        public byte? CurrentSpeed { get; set; }
         
         [JsonProperty(JKeys.CircPump.ValvesOpened)]
-        public int? OpenedValvesCount { get; set; }
+        public byte? OpenedValvesCount { get; set; }
         
         //[JsonProperty(JKeys.Generic.Source)]
         //public string Source { get; set; } = string.Empty;
         
-        //[JsonProperty(JKeys.Generic.CommandID)]
-        //public string? CommandID { get; set; }
+        [JsonProperty(JKeys.Generic.CommandID)]
+        public string? CommandID { get; set; }
     }
 #nullable disable
 }

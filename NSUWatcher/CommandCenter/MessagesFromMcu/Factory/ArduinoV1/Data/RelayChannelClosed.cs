@@ -16,5 +16,8 @@ namespace NSUWatcher.CommandCenter.MessagesFromMcu.Factory.ArduinoV1.Data
         
         [JsonProperty(JKeys.RelayModule.IsLocked)]
         public bool IsLocked { get; set; }
+
+        [JsonProperty(JKeys.Generic.CommandID)]
+        public string CommandID { get; set; }
     }
 }
