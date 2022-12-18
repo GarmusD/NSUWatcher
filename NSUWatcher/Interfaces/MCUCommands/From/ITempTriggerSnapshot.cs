@@ -11,7 +11,7 @@
     }
 #nullable disable
 
-    public interface ITempTriggerPiece : IMessageFromMcu
+    public interface ITempTriggerPiece
     {
         bool Enabled { get; set; }
         string TSensorName { get; set; }

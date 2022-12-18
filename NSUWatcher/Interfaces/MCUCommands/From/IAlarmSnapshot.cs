@@ -9,4 +9,10 @@
 		IAlarmChannel[] ChannelData { get; set; }
 		bool? IsAlarming { get; set; }
     }
+
+    public interface IAlarmChannel
+    {
+        int Channel { get; set; }
+        bool IsOpen { get; set; }
+    }
 }
