@@ -55,6 +55,12 @@
   <PropertyGroup>
     <StartupObject>NSUWatcher.Program</StartupObject>
   </PropertyGroup>
+   <PropertyGroup> 
+    <ContentSQLiteInteropFiles>true</ContentSQLiteInteropFiles>
+    <CopySQLiteInteropFiles>false</CopySQLiteInteropFiles>
+    <CleanSQLiteInteropFiles>false</CleanSQLiteInteropFiles>
+    <CollectSQLiteInteropFiles>false</CollectSQLiteInteropFiles>
+ </PropertyGroup>
   <ItemGroup>
     <Reference Include="CsvHelper, Version=30.0.0.0, Culture=neutral, PublicKeyToken=8c4959082be5c823, processorArchitecture=MSIL">
       <HintPath>..\packages\CsvHelper.30.0.1\lib\net47\CsvHelper.dll</HintPath>
@@ -202,6 +208,9 @@
     </Reference>
     <Reference Include="Serilog.Sinks.File, Version=5.0.1.0, Culture=neutral, PublicKeyToken=24c2f752a8e58a10, processorArchitecture=MSIL">
       <HintPath>..\packages\Serilog.Sinks.File.5.0.1-dev-00947\lib\net45\Serilog.Sinks.File.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLite.CodeFirst, Version=1.7.0.34, Culture=neutral, PublicKeyToken=eb96ba0a78d831a7, processorArchitecture=MSIL">
+      <HintPath>..\packages\SQLite.CodeFirst.1.7.0.34\lib\net45\SQLite.CodeFirst.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -391,17 +400,25 @@
     <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\ArduinoV1Commands.cs" />
     <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\CircPumpCommands.cs" />
     <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\CircPump\ClickedData.cs" />
-    <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\ICommandToMcuDataBase.cs" />
     <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\System\EmptyCommand.cs" />
     <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\System\SetTimeData.cs" />
     <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\TempSensor\SetupTempSensorData.cs" />
     <Compile Include="CommandCenter\ToMcuCommands\Factories\ArduinoV1\SystemCommands.cs" />
     <Compile Include="CommandCenter\ToMcuCommands\Factories\ToMcuCommandFactories.cs" />
-    <Compile Include="Db\Models\NsuUser.cs" />
-    <Compile Include="Db\Sqlite\NsuUsersContext.cs" />
-    <Compile Include="DBUtils\PasswordHasher.cs" />
+    <Compile Include="Db\Sqlite\Data\NsuUserImpl.cs" />
+    <Compile Include="Db\NsuWatcherDbContext.cs" />
+    <Compile Include="Db\Sqlite\Entities\NsuUser.cs" />
+    <Compile Include="Db\Sqlite\Entities\NsuUserPermissions.cs" />
+    <Compile Include="Db\Sqlite\CustomHistory.cs" />
+    <Compile Include="Db\Sqlite\ModelConfiguration.cs" />
+    <Compile Include="Db\Sqlite\NsuDbInitializer.cs" />
+    <Compile Include="Db\Sqlite\NsuDbContext.cs" />
+    <Compile Include="NSUUserManagement\PasswordHasher.cs" />
+    <Compile Include="Db\Sqlite\NsuWatcherUsersDbContext.cs" />
     <Compile Include="Db\Sqlite\SqliteConfiguration.cs" />
     <Compile Include="Exceptions\ConfigurationValueMissingException.cs" />
+    <Compile Include="Interfaces\DB\INsuDbContext.cs" />
+    <Compile Include="Interfaces\DB\INsuUsersDbContext.cs" />
     <Compile Include="Interfaces\ExtCommands\IBinUploaderCommands.cs" />
     <Compile Include="Interfaces\ExtCommands\ICircPumpCommands.cs" />
     <Compile Include="Interfaces\ExtCommands\ICollectorCommands.cs" />
@@ -424,9 +441,8 @@
     <Compile Include="Interfaces\IMessageData.cs" />
     <Compile Include="Interfaces\IMcuMessageTransport.cs" />
     <Compile Include="Interfaces\INsuSystem.cs" />
-    <Compile Include="Interfaces\INsuUser.cs" />
-    <Compile Include="Interfaces\INsuUsers.cs" />
-    <Compile Include="Interfaces\MCUCommands\From\IAlarmChannel.cs" />
+    <Compile Include="Interfaces\NsuUsers\INsuUser.cs" />
+    <Compile Include="Interfaces\NsuUsers\INsuUsers.cs" />
     <Compile Include="Interfaces\MCUCommands\From\IAlarmSnapshot.cs" />
     <Compile Include="Interfaces\MCUCommands\From\ICircPumpInfo.cs" />
     <Compile Include="Interfaces\MCUCommands\From\ICircPumpSnapshot.cs" />
@@ -508,10 +524,8 @@
     <Compile Include="NSUSystem\NSUSystemParts\Usercmd.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\WaterBoilers.cs" />
     <Compile Include="NSUSystem\NSUSystemParts\WoodBoilers.cs" />
-    <Compile Include="NSUUserManagement\NSUUser.cs" />
-    <Compile Include="NSUUserManagement\NSUUserPermissions.cs" />
     <Compile Include="NSUUserManagement\NSUUsers.cs" />
-    <Compile Include="NSUUserManagement\NSUUserType.cs" />
+    <Compile Include="NSUWatcherFolders.cs" />
     <Compile Include="NSUWatcherNet\DataReceivedArgs.cs" />
     <Compile Include="NSUWatcherNet\NetClient.cs" />
     <Compile Include="NSUWatcherNet\NetClientData.cs" />
@@ -526,6 +540,7 @@
     <Compile Include="NSUWatcherNet\NetMessenger\Messenger.cs" />
     <Compile Include="NSUWatcherNet\NetMessenger\NsuSysMsgProcessor.cs" />
     <Compile Include="NSUWatcherNet\NetMessenger\RelayModuleChanges.cs" />
+    <Compile Include="NSUWatcherNet\NetMessenger\StandartResponses.cs" />
     <Compile Include="NSUWatcherNet\NetMessenger\SwitchChanges.cs" />
     <Compile Include="NSUWatcherNet\NetMessenger\SysMsgProcessor.cs" />
     <Compile Include="NSUWatcherNet\NetMessenger\SystemFanChanges.cs" />
