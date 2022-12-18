@@ -57,7 +57,7 @@ namespace NSUWatcher.NSUSystem
             ValidateConfig();
 
             _logger.LogInformation("Creating XMLConfig.");
-            XMLConfig = new NSUXMLConfig(loggerFactory);
+            XMLConfig = new NSUXMLConfig();
 
             _iCmdCenter = cmdCenter;
             _iCmdCenter.SystemMessageReceived += CmdCenter_SystemMessageReceived;
