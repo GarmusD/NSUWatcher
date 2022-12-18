@@ -11,11 +11,11 @@ namespace NSUWatcher.NSUSystem.Data
         public bool Enabled { get; set; }
         public string Name { get; set; } = string.Empty;
         public string TempTriggerName { get; set; } = string.Empty;
-        public int CurrentSpeed { get; set; }
-        public int MaxSpeed { get; set; }
-        public int Spd1Channel { get; set; }
-        public int Spd2Channel { get; set; }
-        public int Spd3Channel { get; set; }
+        public byte CurrentSpeed { get; set; }
+        public byte MaxSpeed { get; set; }
+        public byte Spd1Channel { get; set; }
+        public byte Spd2Channel { get; set; }
+        public byte Spd3Channel { get; set; }
         public Status Status { get; set; }
         public int OpenedValvesCount { get; set; }
 
