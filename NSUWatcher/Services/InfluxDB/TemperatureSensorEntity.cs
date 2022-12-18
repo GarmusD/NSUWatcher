@@ -2,6 +2,14 @@
 
 namespace NSUWatcher.Services.InfluxDB
 {
+    public enum ValueStrategyType
+    {
+        Default,
+        LastValue,
+        AverageValue,
+        MaxValue
+    }
+
     public class TemperatureSensorEntity : DataEntity
     {
         private readonly IValueStrategy<double> _tempValueStrategy;
@@ -39,11 +47,5 @@ namespace NSUWatcher.Services.InfluxDB
         }
     }
 
-    public enum ValueStrategyType
-    {
-        Default,
-        LastValue,
-        AverageValue,
-        MaxValue
-    }
+    
 }

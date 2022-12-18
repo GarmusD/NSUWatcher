@@ -10,8 +10,6 @@ using NSU.Shared.NSUSystemPart;
 using NSUWatcher.Interfaces;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,11 +39,14 @@ namespace NSUWatcher.Services.InfluxDB
                 _logger.LogWarning("InfluxDB is not configured and will not run. Required values in 'InfluxDB' section is: 'url', 'token', 'bucket' and 'org'.");
                 return;
             }
-            _logger.LogDebug($"Using token: {_config.Token}");
-            _logger.LogDebug($"Using url: {_config.Url}");
-            _logger.LogDebug($"Using bucket: {_config.Bucket}");
-            _logger.LogDebug($"Using org: {_config.Org}");
-            _influxDbClient = new InfluxDBClient(_config!.Url, _config!.Token);
+
+            InfluxDBClientOptions options = new InfluxDBClientOptions(_config!.Url)
+            { 
+                Token = _config.Token,
+                Bucket = _config.Bucket,
+                Org = _config.Org,
+            };
+            _influxDbClient = new InfluxDBClient(options);
             
             _oneMinuteTimer = new System.Timers.Timer(TimeSpan.FromMinutes(1).TotalMilliseconds);
             _oneMinuteTimer.Elapsed += (s, e) => 
@@ -66,32 +67,43 @@ namespace NSUWatcher.Services.InfluxDB
         private void ReloadEntityData()
         {
             _sensorEntities.Clear();
+            ReloadTempSensorData();
+            ReloadKTypeData();
+            _logger.LogDebug($"ReloadEntityData(): SensorEntities: {_sensorEntities.Count}");
+        }
+        
+        private void ReloadTempSensorData()
+        {
             var tsData = _nsuSys.GetEntityData<ITempSensorDataContract>();
-            if(tsData != null)
+            if (tsData != null)
                 foreach (var data in tsData)
                 {
-                    _sensorEntities.Add(new TemperatureSensorEntity(data.Temperature) 
-                    { 
+                    _sensorEntities.Add(new TemperatureSensorEntity(data.Temperature)
+                    {
                         SensorName = data.Name,
                         SensorType = DataEntityType.DS18B20,
                         SensorID = TempSensor.AddrToString(data.SensorID),
                         Timing = _config!.Timing.TSensor
                     });
                 }
+        }
+
+        private void ReloadKTypeData()
+        {
             var ktypeData = _nsuSys.GetEntityData<IKTypeDataContract>();
-            if(ktypeData != null)
+            if (ktypeData != null)
                 foreach (var data in ktypeData)
                 {
                     _sensorEntities.Add(new TemperatureSensorEntity(data.Temperature)
                     {
                         SensorName = data.Name,
                         SensorType = DataEntityType.KType,
+                        SensorID = data.Name,
                         Timing = _config!.Timing.TSensor
                     });
                 }
-            _logger.LogDebug($"ReloadEntityData(): SensorEntities: {_sensorEntities.Count}");
         }
-        
+
         private void UpdateEntityData(INSUSysPartDataContract s, string propertyName)
         {
             switch (s)
@@ -121,31 +133,67 @@ namespace NSUWatcher.Services.InfluxDB
                 entity.Temperature = ktypeData.Temperature;
         }
 
+        /// <summary>
+        /// Called at the start of minute. Writes to DB based on Timig value of dataEntity
+        /// </summary>
+        /// <param name="minute"></param>
+        /// <returns></returns>
         private Task WriteDataAsync(int minute)
         {
-            return Task.Run(() => 
+            return Task.Run(() =>
             {
                 int writesCount = 0;
                 using var writeApi = _influxDbClient?.GetWriteApi();
-                foreach (var sensorEntity in _sensorEntities)
+                if (writeApi != null)
                 {
-                    if (minute % sensorEntity.Timing == 0)
+                    CatchWriteApiErrorEvents(writeApi);
+                    foreach (var sensorEntity in _sensorEntities)
                     {
-                        var pointData = GetTempSensorPointData(sensorEntity);
-                        try
+                        if (minute % sensorEntity.Timing == 0)
                         {
-                            writesCount++;
-                            writeApi?.WritePoint(pointData, bucket: _config!.Bucket, org: _config!.Org);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError($"WriteDataAsync(): {ex.Message}");
+                            var pointData = GetTempSensorPointData(sensorEntity);
+                            try
+                            {
+                                writesCount++;
+                                writeApi?.WritePoint(pointData);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError($"WriteDataAsync(): {ex.Message}");
+                            }
                         }
                     }
+                    _logger.LogDebug($"WriteDataAsync() done with {writesCount} writes.");
                 }
-
-                _logger.LogDebug($"WriteDataAsync() done with {writesCount} writes.");
+                else
+                {
+                    _logger.LogError("_influxDbClient?.GetWriteApi() returned null.");
+                }
             });
+        }
+
+        private void CatchWriteApiErrorEvents(WriteApi writeApi)
+        {
+            writeApi!.EventHandler += (s, e) => 
+            {
+                switch (e)
+                {
+                    // unhandled exception from server
+                    case WriteErrorEvent error:
+                        _logger.LogError($"WriteErrorEvent: {error.Exception.Message}, LineProtocol: {error.LineProtocol}");
+                        break;
+
+                    // retrievable error from server
+                    case WriteRetriableErrorEvent error:
+                        _logger.LogError($"WriteRetriableErrorEvent: {error.Exception.Message}, LineProtocol: {error.LineProtocol}");
+                        break;
+
+                    // runtime exception in background batch processing
+                    case WriteRuntimeExceptionEvent error:
+                        _logger.LogError($"WriteRuntimeExceptionEvent: {error.Exception.Message}");
+                        break;
+                }
+            };
         }
 
         private PointData GetTempSensorPointData(TemperatureSensorEntity tempSensorData)
@@ -163,6 +211,11 @@ namespace NSUWatcher.Services.InfluxDB
             return data;
         }
 
+        /// <summary>
+        /// Call data writer at the begining of each minute
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         private async Task CalibrateToMinuteStart(CancellationToken cancellationToken)
         {
             try
@@ -178,9 +231,11 @@ namespace NSUWatcher.Services.InfluxDB
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            // If client is null, there is no point to run
             if (_influxDbClient == null) return;
+
             _logger.LogDebug("ExecuteAsync()");
-             
+            
             _ = CalibrateToMinuteStart(stoppingToken);
             _nsuSys.SystemStatusChanged += ((s, e) => ReloadEntityData());
             if (_nsuSys.CurrentStatus == NsuSystemStatus.Ready)
