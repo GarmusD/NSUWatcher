@@ -3,8 +3,9 @@ using NSU.Shared.NSUNet;
 
 namespace NSUWatcher.NSUWatcherNet.NetMessenger
 {
+#nullable enable
     public interface IMsgProcessor
     {
-        bool ProcessMessage(JObject message, out INetMessage response);
+        bool ProcessMessage(JObject message, NetClientData clientData, out INetMessage? response);
     }
 }

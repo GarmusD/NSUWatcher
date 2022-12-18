@@ -6,6 +6,7 @@ using NSU.Shared;
 using NSU.Shared.DataContracts;
 using NSU.Shared.NSUNet;
 using NSUWatcher.Interfaces;
+using NSUWatcher.Interfaces.NsuUsers;
 using System.Collections.Generic;
 
 namespace NSUWatcher.NSUWatcherNet.NetMessenger
@@ -14,7 +15,7 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
     {
         public const int VERSION_MAJOR = 0;
         public const int VERSION_MINOR = 4;
-        public const int PROTOCOL_VERSION = 2;
+        public const int PROTOCOL_VERSION = 3;
 
 
         private readonly NetServer _netServer;
@@ -23,22 +24,23 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 
         private readonly List<IMsgProcessor> _msgProcessors;
 
-        public Messenger(NetServer netServer, ICmdCenter cmdCenter, INsuSystem nsuSystem, ILoggerFactory loggerFactory)
+        public Messenger(NetServer netServer, INsuUsers nsuUsers, ICmdCenter cmdCenter, INsuSystem nsuSystem, ILoggerFactory loggerFactory)
         {
             _netServer = netServer;
             _nsuSystem = nsuSystem;
             _logger = loggerFactory?.CreateLoggerShort<Messenger>() ?? NullLoggerFactory.Instance.CreateLoggerShort<Messenger>();
             _msgProcessors = new List<IMsgProcessor>()
             {
-                new SysMsgProcessor(),
+                new SysMsgProcessor(nsuUsers, loggerFactory),
                 new NsuSysMsgProcessor(cmdCenter)
             };
 
             _nsuSystem.EntityStatusChanged += NsuSystem_StatusChanged;
         }
 
-        public INetMessage ProcessNetMessage(INetMessage message)
+        public INetMessage ProcessNetMessage(INetMessage message, NetClientData clientData)
         {
+            _logger.LogDebug("ProcessNetMessage()");
             if (message.DataType == DataType.String)
             {
                 try
@@ -48,7 +50,7 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
                     JObject jsonData = JObject.Parse(dataStr);
                     if (JsonDataIsValid(jsonData))
                     {
-                        return ProcessJsonData(jsonData);
+                        return ProcessJsonData(jsonData, clientData);
                     }
                 }
                 catch (JsonReaderException) { }
@@ -62,12 +64,15 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
             return jo.ContainsKey(JKeys.Generic.Target) && jo.ContainsKey(JKeys.Generic.Action);
         }
 
-        private INetMessage ProcessJsonData(JObject jsonData)
+        private INetMessage ProcessJsonData(JObject jsonData, NetClientData clientData)
         {
             foreach (var processor in _msgProcessors)
             {
-                if (processor.ProcessMessage(jsonData, out INetMessage netMessage))
+                if (processor.ProcessMessage(jsonData, clientData, out INetMessage netMessage))
+                {
+                    _logger.LogDebug($"ProcessJsonData() returning: {netMessage?.GetType().Name}.");
                     return netMessage;
+                }
             }
             _logger.LogWarning($"Unsupported message received: {jsonData}");
             return null;
