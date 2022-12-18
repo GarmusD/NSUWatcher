@@ -10,6 +10,7 @@ using NSUWatcher.Interfaces;
 using NSUWatcher.NSUWatcherNet.NetMessenger;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.NSUWatcherNet
 {
@@ -26,17 +27,20 @@ namespace NSUWatcher.NSUWatcherNet
         public event ClientConnectedEventHandler ClientConnected;
         public event ClientDisconnectedEventHandler ClientDisconnected;
 
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger _logger;
+        //private readonly INsuUsers _nsuUsers;
         private readonly TcpListener _server;
         private readonly List<NetClient> _clients;
         private readonly Messenger _netMessenger;
         private readonly object _slock = new object();
         private bool _stopRequested = false;
 
-        public NetServer(ICmdCenter commandCenter, INsuSystem nsuSystem, IConfiguration config, ILoggerFactory loggerFactory)
+        public NetServer(ICmdCenter commandCenter, INsuUsers nsuUsers, INsuSystem nsuSystem, IConfiguration config, ILoggerFactory loggerFactory)
         {
+            _loggerFactory = loggerFactory;
             _logger = loggerFactory?.CreateLoggerShort<NetServer>() ?? NullLoggerFactory.Instance.CreateLoggerShort<NetServer>();
-
+            //_nsuUsers = nsuUsers;
             var netServerCfg = config.GetSection("netServer").Get<NetServerCfg>();
             if (netServerCfg.Port < 0)
             {
@@ -48,7 +52,7 @@ namespace NSUWatcher.NSUWatcherNet
             _server = new TcpListener(IPAddress.Any, netServerCfg.Port);
             _server.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             _clients = new List<NetClient>();
-            _netMessenger = new Messenger(this, commandCenter, nsuSystem, loggerFactory);
+            _netMessenger = new Messenger(this, nsuUsers, commandCenter, nsuSystem, loggerFactory);
         }
 
         public async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -180,7 +184,7 @@ namespace NSUWatcher.NSUWatcherNet
 
         private void ConnectClient(TcpClient tcpClient)
         {
-            var client = new NetClient(tcpClient, _netMessenger, (ILogger<NetClient>)_logger);
+            var client = new NetClient(tcpClient, _netMessenger, _loggerFactory);
             client.ClientData.IPAddress = !(tcpClient.Client.RemoteEndPoint is IPEndPoint endPoint) ? string.Empty : endPoint.Address.ToString();
             client.Disconnected += NetClientDisconnected;
             lock (_slock)

@@ -1,12 +1,11 @@
 ﻿using NSU.Shared.NSUNet;
-using NSUWatcher.Interfaces;
-using NSUWatcher.NSUUserManagement;
+using NSUWatcher.Interfaces.NsuUsers;
 using System;
-using System.Diagnostics.CodeAnalysis;
 
 namespace NSUWatcher.NSUWatcherNet
 {
-	public class NetClientData : IEquatable<NetClientData>
+#nullable enable
+    public class NetClientData : IEquatable<NetClientData>
     {
 		public enum NetClientType
 		{
@@ -21,16 +20,16 @@ namespace NSUWatcher.NSUWatcherNet
         public int ProtocolVersion { get; set; } = 1;
         public bool CompressionSupported { get; set; } = true;
         public int CompressionProtocol { get; set; }
-        public bool LoggedIn { get; set; } = false;
-        public INsuUser UserData { get; set; } = null;
+        public bool LoggedIn => NsuUser != null;
+        public INsuUser? NsuUser { get; set; } = null;
         public bool IsReady { get; set; } = false;
         public NetClientAccepts ClientAccepts { get; set; } = NetClientAccepts.Alarm | NetClientAccepts.Error | NetClientAccepts.System;
         public string CommandID { get; set; } = string.Empty;
 
         public override string ToString()
         {
-            //return $"User name: '{UserData?.Username}'. User IP: '{IPAddress}'";
-            return $"User name: 'NotImplemented'. User IP: '{IPAddress}'";
+            string userName = NsuUser != null ? NsuUser.UserName : "null";
+            return $"User name: '{userName}'. User IP: '{IPAddress}'";
         }
 
         public bool Equals(NetClientData other)

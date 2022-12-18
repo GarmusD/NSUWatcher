@@ -10,6 +10,7 @@ using System.Threading;
 using Timer = System.Timers.Timer;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace NSUWatcher.NSUWatcherNet
 {
@@ -35,7 +36,7 @@ namespace NSUWatcher.NSUWatcherNet
         public bool Connected => !_disconnected && _tcpClient != null && _tcpClient.Connected;
         public NetClientData ClientData => _clientData;
 
-        private readonly ILogger<NetClient> _logger;
+        private readonly ILogger _logger;
         private readonly TcpClient _tcpClient;
         private readonly NetworkStream _netStream;
         private readonly InternalArgBuilder _idra = new InternalArgBuilder();
@@ -52,10 +53,10 @@ namespace NSUWatcher.NSUWatcherNet
 
         private bool _disconnected = false;
 
-        public NetClient(TcpClient client, NetMessenger.Messenger netMessenger, ILogger<NetClient> logger)
+        public NetClient(TcpClient client, NetMessenger.Messenger netMessenger, ILoggerFactory loggerFactory)
         {
             _tcpClient = client;
-            _logger = logger;//.ForContext<NetClient>();
+            _logger = loggerFactory?.CreateLoggerShort<NetClient>() ?? NullLoggerFactory.Instance.CreateLogger<NetClient>();
             _netMessenger = netMessenger;
             _netStream = client.GetStream();
             _rcvBuffer = new byte[client.ReceiveBufferSize];
@@ -106,6 +107,7 @@ namespace NSUWatcher.NSUWatcherNet
 
         public Task StartListeningAsync()
         {
+            _logger.LogDebug("StartListeningAsync()");
             _ = RunQueueTaskAsync();
             return Task.Run(() =>
             {
@@ -122,6 +124,7 @@ namespace NSUWatcher.NSUWatcherNet
                         }
                         else
                         {
+                            _logger.LogDebug("Received zero data. StartListeningAsync() terminating.");
                             break;
                         }
                     }
@@ -143,14 +146,16 @@ namespace NSUWatcher.NSUWatcherNet
                 if (args.DataType == NetDataType.String)
                 {
                     message = new NetMessage((string)args.Data);
-                }
-
+                }                
                 if (message != null)
                 {
-                    INetMessage response = _netMessenger.ProcessNetMessage(message);
+                    _logger.LogDebug($"Received data: {message.AsString()}");
+                    INetMessage response = _netMessenger.ProcessNetMessage(message, _clientData);
                     if (response != null)
                         Send(response);
                 }
+                else
+                    _logger.LogDebug($"ProcessReceivedData(count:{count}) - message is null.");
             }
         }
 
@@ -161,6 +166,7 @@ namespace NSUWatcher.NSUWatcherNet
             {
                 foreach (var data in list)
                 {
+                    _logger.LogDebug("Send() - message enqueued.");
                     _sendQueue.Enqueue(data);
                 }
             }
@@ -172,21 +178,28 @@ namespace NSUWatcher.NSUWatcherNet
         {
             return Task.Run(() =>
             {
+                _logger.LogDebug("RunQueueTaskAsync()");
                 byte[] data;
-                while (_sendQueue.Any() && !_disconnected)
+                while (!_disconnected)
                 {
-                    lock (_lockObj)
+                    while (_sendQueue.Any())
                     {
-                        data = _sendQueue.Dequeue();
+                        lock (_lockObj)
+                        {
+                            data = _sendQueue.Dequeue();
+                        }
+                        _logger.LogDebug("RunQueueTaskAsync() - data dequeued.");
+                        if (!SendBuffer(data))
+                        {
+                            DisconnectAndRaise();
+                            return;
+                        }
+                        _logger.LogDebug("RunQueueTaskAsync() - data is sent.");
                     }
-                    if (!SendBuffer(data))
-                    {
-                        DisconnectAndRaise();
-                        return;
-                    }
+                    _logger.LogDebug("Waiting for next data in the sendQueue.");
+                    _are.WaitOne();
+                    _logger.LogDebug("The data in the sendQueue arrived.");
                 }
-                if (_disconnected) return;
-                _are.WaitOne();
             });
         }
 
@@ -198,11 +211,12 @@ namespace NSUWatcher.NSUWatcherNet
                 if (_netStream.CanWrite)
                 {
                     _netStream.Write(buffer, 0, buffer.Length);
+                    _logger.LogDebug("SendBuffer() netStream.Write done.");
                     _respTimer.Enabled = activateTimer;
                     ResetPinger();
                     return true;
                 }
-                _logger.LogDebug("SendBuffer() netStream is null or not writable.", true);
+                _logger.LogDebug("SendBuffer() netStream is null or not writable.");
                 return false;
             }
             //client disconnected
