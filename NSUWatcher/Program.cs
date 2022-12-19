@@ -37,7 +37,7 @@ namespace NSUWatcher
             SetupDefaultLang();
             AppDomain.CurrentDomain.ProcessExit += ProcessExitRequested;
 
-            // Not in all cases the NSUWatcher needed to run in Hosted environment.
+            // Not in all cases the NSUWatcher is needed to run in Hosted environment.
             // So, loading config separatelly for System.CommandLine.
             // Config will be injected to a host when needed.
             if (!File.Exists(AppSettingsFile))

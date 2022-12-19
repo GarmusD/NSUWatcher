@@ -14,11 +14,11 @@ namespace NSUWatcher.Db.Sqlite
     {
         private readonly ILogger _logger;
         private readonly string _connectionString;
-        public NsuWatcherUsersDbContext(ILoggerFactory loggerFactory)
+        public NsuWatcherUsersDbContext(ILoggerFactory loggerFactory, string? dbName = null)
         {
             _logger = loggerFactory?.CreateLoggerShort<NsuWatcherUsersDbContext>() ?? NullLoggerFactory.Instance.CreateLoggerShort<NsuWatcherUsersDbContext>();
-            string dbFile = Path.Combine(NSUWatcherFolders.DataFolder, "nsuwatcher.db");
-            _connectionString = $"Data Source={dbFile}";// new SQLiteConnectionStringBuilder(dbFile).ConnectionString;
+            string dbFile = Path.Combine(NSUWatcherFolders.DataFolder, dbName ?? "nsuwatcher.db");
+            _connectionString = $"Data Source={dbFile}";
         }
 
         public string CreateUser(string userName, string password, bool isAdmin)
