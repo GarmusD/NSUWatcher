@@ -5,7 +5,6 @@ using NSUWatcher.Interfaces;
 using System.Threading;
 using Microsoft.Extensions.Configuration;
 using NSU.Shared.Serializer;
-using Timer = System.Timers.Timer;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -21,12 +20,9 @@ namespace NSUWatcher.CommandCenter
         public event EventHandler<ManualCommandEventArgs> ManualCommandReceived;
 
         // Properties
-        public bool Running => _msgTransport != null && _msgTransport.IsConnected;
-
         public IMcuMessageTransport MessageTransport { get => _msgTransport; set => SetMessageTransport(value); }
-
         public IMcuCommands MCUCommands => _mcuCommands;
-        public IExternalCommands ExternalCommands => _externalCommands;
+        public IExternalCommands ExtCommandFactory => _externalCommands;
 
         // Private fields
         private readonly ILogger _logger;
@@ -35,7 +31,7 @@ namespace NSUWatcher.CommandCenter
         private readonly ExternalCommands _externalCommands;
         private IMcuMessageTransport _msgTransport = null;
         private readonly IHostApplicationLifetime _lifetime;
-        private readonly Timer _guardTimer;
+        
 
         public CmdCenter(IMcuMessageTransport transport, IConfiguration config, IHostApplicationLifetime lifetime, ILoggerFactory loggerFactory)
         {
@@ -51,8 +47,6 @@ namespace NSUWatcher.CommandCenter
 
             _logger.LogDebug("Creating ExternalCommands.");
             _externalCommands = new ExternalCommands( new NsuSerializer() );
-
-            _guardTimer = new Timer(TimeSpan.FromSeconds(15).TotalMilliseconds);
 
             _logger.LogTrace("Created.");
         }
@@ -84,49 +78,23 @@ namespace NSUWatcher.CommandCenter
         
         private void MessageTransport_DataReceived(object sender, TransportDataReceivedEventArgs e)
         {
-            string receivedLine = e.Message;
-
-            if (receivedLine.StartsWith("JSON:", StringComparison.Ordinal))
-            {
-                ParseAndHandleReceivedMcuLine(receivedLine.Remove("JSON:"));
-            }
-            else if (receivedLine.StartsWith("GUARD", StringComparison.Ordinal))
-            {
-                ResetGuardTimer();
-            }
-            else if (receivedLine.StartsWith("DBG:", StringComparison.Ordinal))
-            {
-                _logger.LogDebug("MCU Debug: " + receivedLine.Remove("DBG:"));
-            }
-            else if (receivedLine.StartsWith("ERROR:", StringComparison.Ordinal))
-            {
-                _logger.LogError("MCU Error: " + receivedLine.Remove("ERROR:"));
-            }
-            else if (receivedLine.StartsWith("INFO:", StringComparison.Ordinal))
-            {
-                _logger.LogInformation("MCU Info: " + receivedLine.Remove("INFO:"));
-            }
-            else _logger.LogDebug("MCU Unknown data: " + receivedLine);
-        }
-
-        private void ParseAndHandleReceivedMcuLine(string receivedLine)
-        {
             try
             {
-                _logger.LogDebug($"ParseAndHandleReceivedMcuLine(): {receivedLine}");
-                var cmd = _mcuCommands.FromMcu.Parse(receivedLine);
+                var receivedMessage = e.Message;
+                var cmd = _mcuCommands.FromMcu.Parse(receivedMessage);
                 if (cmd == null)
                 {
-                    _logger.LogWarning($"ParseAndHandleReceivedLine(): Unsupported command received: '{receivedLine}'.");
+                    _logger.LogWarning($"ParseAndHandleReceivedLine(): Unsupported command received: '{receivedMessage}'.");
                     return;
                 }
                 OnMcuMessageReceived(cmd);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"ParseAndHandleReceivedLine(): '{receivedLine}' Exception:");
+                _logger.LogError(ex, "ParseAndHandleReceivedLine(): Exception: {ex}");
             }
         }
+
 
         private void OnMcuMessageReceived(IMessageFromMcu data)
         {
@@ -185,31 +153,9 @@ namespace NSUWatcher.CommandCenter
             OnManualCommandReceived(command);
         }
 
-        public void ResetGuardTimer()
-        {
-            _guardTimer.Enabled = false;
-            _guardTimer.Enabled = true;
-        }
-
         public void Dispose()
         {
             _msgTransport.Dispose();
-            _guardTimer.Dispose();
-        }
-    }
-
-    public static class StringExt
-    {
-        /// <summary>
-        /// Extension method to remove a substring from an string start.
-        /// Also trims resulting string.
-        /// </summary>
-        /// <param name="orig">A string to remove from</param>
-        /// <param name="value">A substring to remove</param>
-        /// <returns></returns>
-        public static string Remove(this string orig, string value)
-        {
-            return orig.Remove(0, value.Length).Trim();
         }
     }
 }
