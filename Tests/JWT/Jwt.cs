@@ -1,6 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSUWatcher.Interfaces.NsuUsers;
-using NSUWatcher.NSUWatcherNet.NetMessenger;
+using NSUWatcher.Services.NSUWatcherNet.NetMessenger.Processors;
 using System.Collections.Generic;
 
 namespace Tests.JWT
@@ -18,18 +18,27 @@ namespace Tests.JWT
         {
             var token = SysMsgProcessor.CreateJWT(new NsuUser() { Id = 1, UserName = UserName, UserType = NsuUserType.Admin }, Issuer, Audience, Secret);
             Assert.IsNotNull(token);
-            var decoded = SysMsgProcessor.DecodeJWT(token, Issuer, Audience, Secret);
-            Assert.IsNotNull(decoded);
-            Assert.AreEqual(Issuer, (string)decoded["iss"]);
-            Assert.AreEqual(Audience, (string)decoded["aud"]);
-            Assert.AreEqual(1, (int)(long)decoded["userid"]);
-            Assert.AreEqual(UserName, (string)decoded["username"]);
-            Assert.AreEqual((int)NsuUserType.Admin, (int)(long)decoded["usertype"]);
+            var decodedToData = SysMsgProcessor.DecodeJWT(token, Issuer, Audience, Secret);
+            Assert.IsNotNull(decodedToData);
+            var jwtData = decodedToData.Value;
+            Assert.AreEqual(Issuer, jwtData.Issuer);
+            Assert.AreEqual(Audience, jwtData.Audience);
+            Assert.AreEqual(1, jwtData.UserId);
+            Assert.AreEqual(UserName, jwtData.Username);
+            Assert.AreEqual((int)NsuUserType.Admin, jwtData.UserType);
+        }
+
+        [TestMethod]
+        public void DecodeRandomString()
+        {
+            var decoded = SysMsgProcessor.DecodeJWT("just any random string", Issuer, Audience, Secret);
+            Assert.IsNull(decoded);
         }
 
         private class NsuUser : INsuUser
         {
             public int Id { get; set; }
+            public bool Enabled { get; set; }
 
             public string UserName { get; set;}
 
