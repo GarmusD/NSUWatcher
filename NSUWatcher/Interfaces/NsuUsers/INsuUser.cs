@@ -11,6 +11,7 @@ namespace NSUWatcher.Interfaces.NsuUsers
     public interface INsuUser
     {
         int Id { get; }
+        bool Enabled { get; }
         string UserName { get; }
         string Password { get; }
         NsuUserType UserType { get; }
