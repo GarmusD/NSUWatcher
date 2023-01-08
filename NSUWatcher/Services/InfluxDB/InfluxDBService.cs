@@ -10,6 +10,7 @@ using NSU.Shared.NSUSystemPart;
 using NSUWatcher.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -39,6 +40,10 @@ namespace NSUWatcher.Services.InfluxDB
                 _logger.LogWarning("InfluxDB is not configured and will not run. Required values in 'InfluxDB' section is: 'url', 'token', 'bucket' and 'org'.");
                 return;
             }
+            _logger.LogDebug($"InfluxDbConfig.Url: {_config!.Url}");
+            _logger.LogDebug($"InfluxDbConfig.Token: {_config!.Token}");
+            _logger.LogDebug($"InfluxDbConfig.Bucket: {_config!.Bucket}");
+            _logger.LogDebug($"InfluxDbConfig.Org: {_config!.Org}");
 
             InfluxDBClientOptions options = new InfluxDBClientOptions(_config!.Url)
             { 
@@ -78,13 +83,16 @@ namespace NSUWatcher.Services.InfluxDB
             if (tsData != null)
                 foreach (var data in tsData)
                 {
-                    _sensorEntities.Add(new TemperatureSensorEntity(data.Temperature)
+                    if (data.Enabled)
                     {
-                        SensorName = data.Name,
-                        SensorType = DataEntityType.DS18B20,
-                        SensorID = TempSensor.AddrToString(data.SensorID),
-                        Timing = _config!.Timing.TSensor
-                    });
+                        _sensorEntities.Add(new TemperatureSensorEntity(data.Temperature)
+                        {
+                            SensorName = data.Name,
+                            SensorType = DataEntityType.DS18B20,
+                            SensorID = TempSensor.AddrToString(data.SensorID),
+                            Timing = _config!.Timing.TSensor
+                        });
+                    }
                 }
         }
 
@@ -142,32 +150,21 @@ namespace NSUWatcher.Services.InfluxDB
         {
             return Task.Run(() =>
             {
-                int writesCount = 0;
-                using var writeApi = _influxDbClient?.GetWriteApi();
-                if (writeApi != null)
+                var dataPoints = _sensorEntities.FindAll(x => minute % x.Timing == 0).Select(x => GetTempSensorPointData(x)).ToList();
+                if (dataPoints?.Any() == true)
                 {
-                    CatchWriteApiErrorEvents(writeApi);
-                    foreach (var sensorEntity in _sensorEntities)
+                    using var writeApi = _influxDbClient?.GetWriteApi();
+                    if (writeApi != null)
                     {
-                        if (minute % sensorEntity.Timing == 0)
-                        {
-                            var pointData = GetTempSensorPointData(sensorEntity);
-                            try
-                            {
-                                writesCount++;
-                                writeApi?.WritePoint(pointData);
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError($"WriteDataAsync(): {ex.Message}");
-                            }
-                        }
+                        CatchWriteApiErrorEvents(writeApi);
+
+                        writeApi.WritePoints(dataPoints);
+                        _logger.LogDebug($"WriteDataAsync() done for {dataPoints.Count} data points.");
                     }
-                    _logger.LogDebug($"WriteDataAsync() done with {writesCount} writes.");
-                }
-                else
-                {
-                    _logger.LogError("_influxDbClient?.GetWriteApi() returned null.");
+                    else
+                    {
+                        _logger.LogError("_influxDbClient?.GetWriteApi() returned null.");
+                    }
                 }
             });
         }
@@ -180,17 +177,17 @@ namespace NSUWatcher.Services.InfluxDB
                 {
                     // unhandled exception from server
                     case WriteErrorEvent error:
-                        _logger.LogError($"WriteErrorEvent: {error.Exception.Message}, LineProtocol: {error.LineProtocol}");
+                        _logger.LogError($"WriteErrorEvent: {error.Exception}, LineProtocol: {error.LineProtocol}");
                         break;
 
                     // retrievable error from server
                     case WriteRetriableErrorEvent error:
-                        _logger.LogError($"WriteRetriableErrorEvent: {error.Exception.Message}, LineProtocol: {error.LineProtocol}");
+                        _logger.LogError($"WriteRetriableErrorEvent: {error.Exception}, LineProtocol: {error.LineProtocol}");
                         break;
 
                     // runtime exception in background batch processing
                     case WriteRuntimeExceptionEvent error:
-                        _logger.LogError($"WriteRuntimeExceptionEvent: {error.Exception.Message}");
+                        _logger.LogError($"WriteRuntimeExceptionEvent: {error.Exception}");
                         break;
                 }
             };
