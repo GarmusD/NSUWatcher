@@ -2,7 +2,7 @@
 using NSU.Shared;
 using NSUWatcher.Interfaces.MCUCommands;
 
-namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.CircPump
+namespace NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.CircPump
 {
 #nullable enable
     public readonly struct ClickedData : ICommandToMcuData
@@ -25,5 +25,4 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.CircPu
             Name = name;
         }
     }
-#nullable disable
 }
