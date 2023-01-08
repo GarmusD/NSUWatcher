@@ -16,7 +16,7 @@ using NSUWatcher.Worker;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using NSUWatcher.Transport.TestTransport;
-using NSUWatcher.NSUWatcherNet;
+using NSUWatcher.Services.NSUWatcherNet;
 using NSUWatcher.Services.InfluxDB;
 using NSUWatcher.Interfaces.NsuUsers;
 using NSUWatcher.Db;
@@ -45,11 +45,6 @@ namespace NSUWatcher
                 Console.WriteLine($"Required settings file '{AppSettingsFile}' could not be found.");
                 return;
             }
-            using (var fr = File.OpenRead(AppSettingsFile))
-            {
-                Console.WriteLine("Settings file is readable.");
-            }
-
 
             var config = new ConfigurationBuilder()
                 .AddEnvironmentVariables()
@@ -89,7 +84,7 @@ namespace NSUWatcher
         private static RootCommand SetupCommandLine(IConfigurationRoot config)
         {
             Command serviceCmd = SetupRunAsServiceCommand(config);
-            Command userCmd = SetupUserAddRemoveCommand(config);
+            Command userCmd = SetupUserAddDeleteCommand(config);
 
             var rootCommand = new RootCommand()
             {
@@ -120,10 +115,10 @@ namespace NSUWatcher
             return serviceCmd;
         }
 
-        private static Command SetupUserAddRemoveCommand(IConfigurationRoot config)
+        private static Command SetupUserAddDeleteCommand(IConfigurationRoot config)
         {
             Command userCmdAdd = SetupUserAddCommand(config);
-            Command userCmdRemove = SetupUserRemoveCommand(config);
+            Command userCmdRemove = SetupUserDeleteCommand(config);
 
             // User command
             var userCmd = new Command("user", "Add or remove user")
@@ -134,20 +129,24 @@ namespace NSUWatcher
             return userCmd;
         }
 
-        private static Command SetupUserRemoveCommand(IConfigurationRoot config)
+        private static Command SetupUserDeleteCommand(IConfigurationRoot config)
         {
             // Remove user command
-            var optionRemoveUser = new Option<string>(new string[] { "--user", "-u" }, "User to remove") { IsRequired = true };
-            var userCmdRemove = new Command("remove", "Remove user")
+            var argumentUserToDelete = new Argument<string>() { Description = "User to delete" };
+            //var optionRemoveUser = new Option<string>(new string[] { "--user", "-u" }, "User to remove") { IsRequired = true };
+            var userCmdRemove = new Command("delete", "Delete user")
             {
-                optionRemoveUser
+                argumentUserToDelete,
+                //optionRemoveUser
             };
             userCmdRemove.SetHandler(
                 (userValue) =>
                 {
                     ExecCommandRemoveUser(userValue, config, Logger.LoggerFactory.CreateWithConsole(config, Serilog.Events.LogEventLevel.Information));
                 },
-                optionRemoveUser);
+                //optionRemoveUser
+                argumentUserToDelete
+                );
             return userCmdRemove;
         }
 
@@ -217,16 +216,16 @@ namespace NSUWatcher
         {
             logger.Information($"Creating user '{userName}'. IsAdmin: {isAdmin}");
             NsuWatcherDbContext dbContext = new NsuWatcherDbContext(null);
-            string result = dbContext.NsuUsersDbContext.CreateUser(userName, password, isAdmin);
-            logger.Information(result);
+            var result = dbContext.NsuUsersDbContext.CreateUser(userName, password, isAdmin);
+            logger.Information(result.ToString());
         }
 
         private static void DeleteUser(string userName, Serilog.ILogger logger)
         {
             logger.Information($"Deleting user '{userName}':");
             NsuWatcherDbContext dbContext = new NsuWatcherDbContext(null);
-            string result = dbContext.NsuUsersDbContext.DeleteUser(userName);
-            logger.Information(result);
+            var result = dbContext.NsuUsersDbContext.DeleteUser(userName);
+            logger.Information(result.ToString());
         }
 
         /*
