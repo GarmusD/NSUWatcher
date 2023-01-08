@@ -2,7 +2,7 @@
 using NSU.Shared.NSUNet;
 using System;
 
-namespace NSUWatcher.NSUWatcherNet
+namespace NSUWatcher.Services.NSUWatcherNet
 {
     public class NetMessage : INetMessage
     {

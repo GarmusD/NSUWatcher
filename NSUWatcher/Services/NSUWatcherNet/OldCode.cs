@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 using NSUWatcher.Interfaces.MCUCommands;
 using System;
 
-namespace NSUWatcher.NSUWatcherNet
+namespace NSUWatcher.Services.NSUWatcherNet
 {
     public class OldCode
     {

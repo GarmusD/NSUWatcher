@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 using System.Linq;
 using Microsoft.Extensions.Configuration;
 using NSUWatcher.Interfaces;
-using NSUWatcher.NSUWatcherNet.NetMessenger;
+using NSUWatcher.Services.NSUWatcherNet.NetMessenger;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSUWatcher.Interfaces.NsuUsers;
 
-namespace NSUWatcher.NSUWatcherNet
+namespace NSUWatcher.Services.NSUWatcherNet
 {
     /// <summary>
     /// Network server to handle connection from app's
@@ -52,7 +52,7 @@ namespace NSUWatcher.NSUWatcherNet
             _server = new TcpListener(IPAddress.Any, netServerCfg.Port);
             _server.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             _clients = new List<NetClient>();
-            _netMessenger = new Messenger(this, nsuUsers, commandCenter, nsuSystem, loggerFactory);
+            _netMessenger = new Messenger(this, nsuUsers, commandCenter, nsuSystem, config, loggerFactory);
         }
 
         public async Task ExecuteAsync(CancellationToken stoppingToken)

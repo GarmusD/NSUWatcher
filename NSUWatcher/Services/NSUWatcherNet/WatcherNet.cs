@@ -4,11 +4,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.NsuUsers;
-using NSUWatcher.NSUWatcherNet.NetMessenger;
+using NSUWatcher.Services.NSUWatcherNet.NetMessenger;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NSUWatcher.NSUWatcherNet
+namespace NSUWatcher.Services.NSUWatcherNet
 {
     public class WatcherNet : BackgroundService
     {
@@ -21,7 +21,7 @@ namespace NSUWatcher.NSUWatcherNet
         {
             _logger = loggerFactory?.CreateLoggerShort<WatcherNet>() ?? NullLoggerFactory.Instance.CreateLoggerShort<WatcherNet>();
             _netServer = new NetServer(commandCenter, nsuUsers, nsuSystem, config, loggerFactory);
-            _netMessenger = new Messenger(_netServer, nsuUsers, commandCenter, nsuSystem, loggerFactory);
+            _netMessenger = new Messenger(_netServer, nsuUsers, commandCenter, nsuSystem, config, loggerFactory);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)

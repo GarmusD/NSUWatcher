@@ -2,7 +2,7 @@
 using NSUWatcher.Interfaces.NsuUsers;
 using System;
 
-namespace NSUWatcher.NSUWatcherNet
+namespace NSUWatcher.Services.NSUWatcherNet
 {
 #nullable enable
     public class NetClientData : IEquatable<NetClientData>

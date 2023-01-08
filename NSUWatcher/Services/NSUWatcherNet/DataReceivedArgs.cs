@@ -3,7 +3,7 @@
 using System.Text;
 using NSU.Shared.NSUNet;
 
-namespace NSUWatcher.NSUWatcherNet
+namespace NSUWatcher.Services.NSUWatcherNet
 {
     public partial class NetServer
     {

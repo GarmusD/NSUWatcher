@@ -7,7 +7,7 @@ using System.Threading;
 using Timer = System.Timers.Timer;
 using Microsoft.Extensions.Logging;
 
-namespace NSUWatcher.NSUWatcherNet
+namespace NSUWatcher.Services.NSUWatcherNet
 {
     public partial class NetServer
     {

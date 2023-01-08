@@ -12,7 +12,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace NSUWatcher.NSUWatcherNet
+namespace NSUWatcher.Services.NSUWatcherNet
 {
     public class NetClientDataReceivedEventArgs
     {
@@ -161,6 +161,7 @@ namespace NSUWatcher.NSUWatcherNet
 
         public void Send(INetMessage message)
         {
+            _logger.LogDebug($"Sending to user: {message.AsString()}");
             var list = _protocol.Encode(message, ClientData.ProtocolVersion);
             lock(_lockObj)
             {

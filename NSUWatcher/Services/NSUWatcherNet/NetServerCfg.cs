@@ -1,4 +1,4 @@
-﻿namespace NSUWatcher.NSUWatcherNet
+﻿namespace NSUWatcher.Services.NSUWatcherNet
 {
     public class NetServerCfg
     {
