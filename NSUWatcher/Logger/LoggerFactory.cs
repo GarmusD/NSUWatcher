@@ -54,6 +54,8 @@ namespace NSUWatcher.Logger
             {
                 loggerConf.WriteTo.TeleSink(teleLogCfg.BotToken, teleLogCfg.ChannelId.ToString(), minimumLevel: teleLogCfg.MinimumLevel);
             }
+            if (System.Diagnostics.Debugger.IsAttached)
+                loggerConf.WriteTo.Debug(restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Debug, outputTemplate: OutputTemplate);
             loggerConf.Enrich.FromLogContext();
             return loggerConf;
         }
