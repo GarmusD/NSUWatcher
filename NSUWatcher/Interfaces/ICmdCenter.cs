@@ -13,7 +13,7 @@ namespace NSUWatcher.Interfaces
 
         IMcuMessageTransport MessageTransport { get; set; }
         IMcuCommands MCUCommands { get; }
-        IExternalCommands ExternalCommands { get; }
+        IExternalCommands ExtCommandFactory { get; }
         IExternalCommandResult ExecExternalCommand(IExternalCommand command, INsuUser nsuUser, object context);
         void ExecManualCommand(string command);
     }
