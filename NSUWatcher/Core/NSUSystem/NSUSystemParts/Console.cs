@@ -8,7 +8,7 @@ using NSU.Shared.Serializer;
 using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.NsuUsers;
-using NSUWatcher.Logger.Serilog;
+using NSUWatcher.Logger.Sinks;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -60,7 +60,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                         throw new InvalidCastException($"Invalid content: '{command.Content}'");
 
                     _nsuSys.CmdCenter.ExecExternalCommand(
-                        _nsuSys.CmdCenter.ExternalCommands.UserCmdCommands.ExecUserCommand(content.Value.Command), 
+                        _nsuSys.CmdCenter.ExtCommandFactory.UserCmdCommands.ExecUserCommand(content.Value.Command), 
                         nsuUser, context);
                     return null;
             }

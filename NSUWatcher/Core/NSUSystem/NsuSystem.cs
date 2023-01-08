@@ -28,8 +28,7 @@ namespace NSUWatcher.NSUSystem
         public NsuSysConfig Config => _config;
         public bool IsReady => _isReady;
         public ICmdCenter CmdCenter { get => _iCmdCenter; set => _iCmdCenter = value; }
-        public List<NSUSysPartBase> NSUParts => _nsuParts;
-        
+        public List<NSUSysPartBase> NSUParts => _nsuParts;        
         public NSUXMLConfig XMLConfig { get; }
 
         
@@ -118,8 +117,14 @@ namespace NSUWatcher.NSUSystem
 
         private void CmdCenter_ExternalCommandReceived(object sender, ExternalCommandEventArgs e)
         {
-            _logger.LogCritical("CmdCenter_ExternalCommandReceived(): NotImplementedException");
-            throw new NotImplementedException();
+            var nsuPart = FindPart(e.Command.Target);
+            if (nsuPart == null) 
+            {
+                _logger.LogWarning($"CmdCenter_ExternalCommandReceived(): Unsupported Target received: {e.Command.Target}");
+                return;
+            }
+            _logger.LogDebug($"CmdCenter_ExternalCommandReceived: executing cmd for {e.Command.Target}.");
+            e.Result = nsuPart.ProccessExternalCommand(e.Command, e.NsuUser, e.Context);
         }
         
         private void CmdCenter_ManualCommandReceived(object sender, ManualCommandEventArgs e)
@@ -198,6 +203,19 @@ namespace NSUWatcher.NSUSystem
             }
             return null;
         }
+
+        public string GetSnapshot(SnapshotType snapshotType)
+        {
+            switch (snapshotType)
+            {
+                case SnapshotType.Xml:
+                    return XMLConfig.GetXDocAsString();
+                default:
+                    _logger.LogWarning($"GetSnapshot(): Not implemented for {snapshotType}");
+                    return string.Empty;
+            }
+        }
+        
 #nullable disable
     }
 }

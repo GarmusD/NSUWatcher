@@ -13,7 +13,7 @@ using NSUWatcher.Interfaces.NsuUsers;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-
+#nullable enable
     public class TempSensors : NSUSysPartBase
     {
         public override string[] SupportedTargets => new string[] { JKeys.TempSensor.TargetName };
@@ -38,9 +38,14 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        public TempSensor FindSensor(byte[] addr)
+        public TempSensor? FindSensor(byte[] addr)
         {
-            return _sensors.Find(x => x.CompareAddr(addr));
+            return !TempSensor.IsAddressNull(addr) ? _sensors.Find(x => x.CompareAddr(addr)) : null;
+        }
+
+        public TempSensor? FindSensor(byte cfgPos)
+        {
+            return _sensors.Find(x => x.ConfigPos == cfgPos);
         }
 
         bool IsAddrValid(byte[] addr)
@@ -116,30 +121,26 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             };
             ts.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
             AddSensor(ts);
-            ts.PropertyChanged += (s, e) => { OnPropertyChanged(s as TempSensor, e.PropertyName); };
+            ts.PropertyChanged += (s, e) => { OnPropertyChanged((TempSensor)s, e.PropertyName); };
         }
 
         private void ProcessConfigSnapshot(ITSensorConfigSnapshot configSnapshot)
         {
             byte[] sensorAddr = TempSensor.StringToAddr(configSnapshot.Address);
-            if (IsAddrValid(sensorAddr))
-            {
-                var ts = FindSensor(sensorAddr);
-                if (ts == null)
-                {
-                    ts = new TempSensor();
-                    ts.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
-                    if (!TempSensor.IsAddressNull(ts))
-                        ts.NotFound = true;
-                    AddSensor(ts);
+            TempSensor? ts = FindSensor(sensorAddr);
 
-                }
-                ts.ConfigPos = configSnapshot.ConfigPos;
-                ts.Enabled = configSnapshot.Enabled;
-                ts.SensorID = TempSensor.StringToAddr(configSnapshot.Address);
-                ts.Name = configSnapshot.Name;
-                ts.Interval = configSnapshot.Interval;
+            if (ts == null)
+            {
+                ts = new TempSensor();
+                ts.AttachXMLNode(_nsuSys.XMLConfig.GetConfigSection(NSU.Shared.NSUXMLConfig.ConfigSection.TSensors));
+                if (!TempSensor.IsAddressNull(ts))
+                    ts.NotFound = true;
+                AddSensor(ts);
             }
+            ts.ConfigPos = configSnapshot.ConfigPos;
+            ts.Enabled = configSnapshot.Enabled;
+            ts.Name = configSnapshot.Name;
+            ts.Interval = configSnapshot.Interval;
         }
         
         private void ProcessInfo(ITSensorInfo tSensorInfo)
@@ -152,7 +153,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             }
         }
 
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
             _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;

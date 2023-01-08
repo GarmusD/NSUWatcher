@@ -11,10 +11,11 @@ using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
 using System.Collections;
 using NSUWatcher.Interfaces.NsuUsers;
+using NSU.Shared.DTO.ExtCommandContent;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
-
+#nullable enable
     public class WoodBoilers : NSUSysPartBase
     {
         public override string[] SupportedTargets => new string[] { JKeys.WoodBoiler.TargetName };
@@ -98,9 +99,47 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
         }
 
 
-        public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
+        public override IExternalCommandResult? ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
-            _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
+            return command.Action switch 
+            { 
+                JKeys.WoodBoiler.ActionIkurimas => ProcessExtCommandIkurimas(command, nsuUser, context),
+                JKeys.WoodBoiler.ActionSwitch => ProcessExtCommandSwitchManualMode(command, nsuUser, context),
+                _ => ProcessExtCommandNotImplemented(command)
+            };
+        }
+
+        private IExternalCommandResult? ProcessExtCommandIkurimas(IExternalCommand command, INsuUser nsuUser, object context)
+        {
+            WoodBoilerStartUpContent? content = _serializer.Deserialize<WoodBoilerStartUpContent>(command.Content);
+            if(content == null) 
+            { // TODO Error handling
+                return null;
+            }
+            // TODO Check user permissions
+            _nsuSys.CmdCenter.MCUCommands.ToMcu.WoodBoilerCommands.ActionIkurimas(content.Value.Name).Send();
+            return null;
+        }
+
+        private IExternalCommandResult? ProcessExtCommandSwitchManualMode(IExternalCommand command, INsuUser nsuUser, object context)
+        {
+            WoodBoilerSwitchManualMode? tmpContent = _serializer.Deserialize<WoodBoilerSwitchManualMode>(command.Content);
+            if (tmpContent == null)
+            { // TODO Error handling
+                return null;
+            }
+            // TODO Check user permissions
+            WoodBoilerSwitchManualMode content = tmpContent.Value;
+            if(content.SwitchTarget == JKeys.WoodBoiler.TargetLadomat)
+                _nsuSys.CmdCenter.MCUCommands.ToMcu.WoodBoilerCommands.LadomatSwitchManualMode(content.WoodBoilerName).Send();
+            else if(content.SwitchTarget == JKeys.WoodBoiler.TargetExhaustFan)
+                _nsuSys.CmdCenter.MCUCommands.ToMcu.WoodBoilerCommands.ExhaustFanSwitchManualMode(content.WoodBoilerName).Send();
+            return null;
+        }
+
+        private IExternalCommandResult? ProcessExtCommandNotImplemented(IExternalCommand command)
+        {
+            _logger.LogWarning($"ProccessExternalCommand(): NotImplemented for Target '{command.Target}' and Action '{command.Action}'.");
             return null;
         }
 

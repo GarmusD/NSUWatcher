@@ -36,6 +36,13 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
                     ProcessStatus(status);
                     return true;
 
+                case IRelayChannelOpened channelOpened:
+                    // 
+                    return true;
+
+                case IRelayChannelClosed channelClosed:
+                    return true;
+
                 default:
                     return false;
             }
@@ -55,7 +62,7 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
             };
 
         }
-        
+
         private void ProcessStatus(IRelayInfo status)
         {
             for (var i = 0; i < _modules.Count; i++)
