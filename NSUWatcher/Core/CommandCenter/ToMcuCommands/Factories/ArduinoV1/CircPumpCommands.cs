@@ -1,9 +1,9 @@
 ﻿using System;
 using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.To;
-using NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.CircPump;
+using NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.CircPump;
 
-namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1
+namespace NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories.ArduinoV1
 {
     public class CircPumpCommands : IToMcuCircPumpCommands
     {

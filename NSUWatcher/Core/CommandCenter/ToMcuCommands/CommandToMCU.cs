@@ -1,8 +1,9 @@
 ﻿using System;
 using Newtonsoft.Json;
+using NSU.Shared.Serializer;
 using NSUWatcher.Interfaces.MCUCommands;
 
-namespace NSUWatcher.CommandCenter.ToMcuCommands
+namespace NSUWatcher.Core.CommandCenter.ToMcuCommands
 {
     public class CommandToMCU<T> : ICommandToMCU where T : ICommandToMcuData
     {
@@ -15,11 +16,12 @@ namespace NSUWatcher.CommandCenter.ToMcuCommands
             _sendAction = sendAction ?? throw new ArgumentNullException(nameof(sendAction));
         }
 
+        // TODO Use NsuSerializer
         public string Value => JsonConvert.SerializeObject(_command, LowercaseNamingStrategy.LowercaseSettings);
 
         public void Send()
         {
-            _sendAction.Invoke(Value);
+            _sendAction(Value);
         }
     }
 }

@@ -1,10 +1,10 @@
 ﻿using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.Interfaces.MCUCommands.To;
-using NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.System;
+using NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.System;
 using System;
 using NSU.Shared;
 
-namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1
+namespace NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories.ArduinoV1
 {
 #nullable enable
     public class SystemCommands : IToMcuSystemCommands

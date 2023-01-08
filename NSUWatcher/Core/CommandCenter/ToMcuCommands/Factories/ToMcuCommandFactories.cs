@@ -1,8 +1,8 @@
 ﻿using NSUWatcher.Interfaces.MCUCommands;
-using NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1;
+using NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories.ArduinoV1;
 using System;
 
-namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories
+namespace NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories
 {
     public static class ToMcuCommandFactories
     {

@@ -2,7 +2,7 @@
 using NSU.Shared;
 using NSUWatcher.Interfaces.MCUCommands;
 
-namespace NSUWatcher.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.System
+namespace NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories.ArduinoV1.Data.System
 {
 #nullable enable
     public readonly struct SetTimeData : ICommandToMcuData
