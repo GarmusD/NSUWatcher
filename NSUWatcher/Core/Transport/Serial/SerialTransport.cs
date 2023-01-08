@@ -11,11 +11,22 @@ using System.Threading.Tasks;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Timer = System.Timers.Timer;
 
 namespace NSUWatcher.Transport.Serial
 {
     public class SerialTransport : IMcuMessageTransport, IHostedService
     {
+        private enum MessageMarker
+        {
+            None,
+            Guard,
+            Json,
+            Info,
+            Debug,
+            Error
+        }
+
         // Consts
         private const int BufferSize = 1024;
         
@@ -24,17 +35,19 @@ namespace NSUWatcher.Transport.Serial
         public event EventHandler<TransportStateChangedEventArgs> StateChanged;
 
         // Properties
+        public TransportState TransportState => _transportState;
         public bool IsConnected => _serialPort != null && _serialPort.IsOpen;
         public char CommandDelimiter { get => _commandDelimiter; set => _commandDelimiter = value; }
 
         // Private
-        private SerialPort _serialPort;
         private readonly ILogger _logger;
+        private readonly SerialPort _serialPort;
+        private readonly Timer _guardTimer;
         private char _commandDelimiter;
         private readonly byte[] _buffer;
         private int _bufferIdx;
+        private TransportState _transportState = TransportState.NotConnected;
         private CancellationTokenSource _readPortCancel = null;
-
         
 
         public SerialTransport(IConfiguration config, ILoggerFactory loggerFactory)
@@ -70,13 +83,21 @@ namespace NSUWatcher.Transport.Serial
             _serialPort.DataReceived += SerialPort_DataReceived;
             _serialPort.ErrorReceived += SerialPort_ErrorReceived;
 
+            _guardTimer = new Timer(TimeSpan.FromSeconds(15).TotalMilliseconds);
+            _guardTimer.Elapsed += GuardTimer_Elapsed;
+
             _buffer = new byte[BufferSize];
             _bufferIdx = 0;
 
             _commandDelimiter = '\n';
             _logger.LogTrace("SerialTransport created.");
         }
-        
+
+        private void GuardTimer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            OnStateChanged(TransportState.McuHalted);
+        }
+
         public Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogDebug("SerialTransport StartAsync()");
@@ -161,24 +182,85 @@ namespace NSUWatcher.Transport.Serial
                         Array.Copy(_buffer, delimiterIdx + 1, _buffer, 0, _bufferIdx - delimiterIdx - 1);
                     }
                     _bufferIdx -= delimiterIdx + 1;
-                    rcvStr = RemoveTechnicalInfo(rcvStr);
-                    OnMessageReceived(rcvStr);
+
+                    rcvStr = RemoveSeqNum(rcvStr);
+                    MessageMarker marker;
+                    (marker, rcvStr) = ExtractMessageMarker(rcvStr);
+                    switch (marker)
+                    {
+                        case MessageMarker.None:
+                            _logger.LogDebug("MCU Unknown data: " + rcvStr);
+                            break;
+                        case MessageMarker.Guard:
+                            ResetGuardTimer();
+                            break;
+                        case MessageMarker.Json:
+                            _logger.LogDebug($"MCU Json: {rcvStr}");
+                            OnMessageReceived(rcvStr);
+                            break;
+                        case MessageMarker.Info:
+                            _logger.LogInformation("MCU Info: " + rcvStr);
+                            break;
+                        case MessageMarker.Debug:
+                            _logger.LogDebug("MCU Debug: " + rcvStr);
+                            break;
+                        case MessageMarker.Error:
+                            _logger.LogError("MCU Error: " + rcvStr);
+                            break;
+                        default:
+                            break;
+                    }   
                 }
                 else 
                     return;
             }
         }
 
-        private string RemoveTechnicalInfo(string rcvStr)
+        private string RemoveSeqNum(string rcvStr)
         {
             if (rcvStr.StartsWith("0 "))
                 return rcvStr.Substring("0 ".Length);
             return rcvStr;
         }
+
+        private (MessageMarker, string) ExtractMessageMarker(string message)
+        {
+            MessageMarker marker = MessageMarker.None;
+            string result;
+            if (message.StartsWith("JSON:", StringComparison.Ordinal))
+            {
+                marker = MessageMarker.Json;
+                result = message.Remove("JSON:");
+            }
+            else if (message.StartsWith("GUARD", StringComparison.Ordinal))
+            {
+                marker = MessageMarker.Guard;
+                result = string.Empty;
+            }
+            else if (message.StartsWith("DBG:", StringComparison.Ordinal))
+            {
+                marker = MessageMarker.Debug;
+                result = message.Remove("DBG:");
+            }
+            else if (message.StartsWith("ERROR:", StringComparison.Ordinal))
+            {
+                marker = MessageMarker.Error;
+                result = message.Remove("ERROR:");
+            }
+            else if (message.StartsWith("INFO:", StringComparison.Ordinal))
+            {
+                marker = MessageMarker.Info;
+                result = message.Remove("INFO:");
+            }
+            else
+            {
+                result = message;
+            }
+            return (marker, result);
+        }
         
         private void OnMessageReceived(string message)
         {
-            _logger.LogDebug($"SerialTransport: OnMessageReceived(): {message}");
             var evt = DataReceived;
             evt?.Invoke(this, new TransportDataReceivedEventArgs(message));
         }
@@ -220,8 +302,12 @@ namespace NSUWatcher.Transport.Serial
 
         private void OnStateChanged(TransportState newState)
         {
-            var evt = StateChanged;
-            evt?.Invoke(this, new TransportStateChangedEventArgs(newState));
+            if (_transportState != newState)
+            {
+                _transportState = newState;
+                var evt = StateChanged;
+                evt?.Invoke(this, new TransportStateChangedEventArgs(newState));
+            }
         }
 
         /*
@@ -272,6 +358,12 @@ namespace NSUWatcher.Transport.Serial
             _serialPort.Close();
         }
 
+        public void ResetGuardTimer()
+        {
+            _guardTimer.Enabled = false;
+            _guardTimer.Enabled = true;
+        }
+
         public void Dispose()
         {
             _serialPort?.Dispose();
@@ -279,5 +371,20 @@ namespace NSUWatcher.Transport.Serial
         }
 
         
+    }
+
+    public static class StringExt
+    {
+        /// <summary>
+        /// Extension method to remove a substring from an string start.
+        /// Also trims resulting string.
+        /// </summary>
+        /// <param name="orig">A string to remove from</param>
+        /// <param name="value">A substring to remove</param>
+        /// <returns></returns>
+        public static string Remove(this string orig, string value)
+        {
+            return orig.Remove(0, value.Length).Trim();
+        }
     }
 }
