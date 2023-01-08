@@ -1,6 +1,6 @@
 ﻿using NSUWatcher.Interfaces.MCUCommands;
 using NSUWatcher.CommandCenter.MessagesFromMcu.Factories;
-using NSUWatcher.CommandCenter.ToMcuCommands.Factories;
+using NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories;
 using System;
 using Microsoft.Extensions.Logging;
 
