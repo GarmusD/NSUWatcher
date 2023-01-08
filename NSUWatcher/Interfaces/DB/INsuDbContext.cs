@@ -1,6 +1,4 @@
-﻿using System.Data.Entity;
-
-namespace NSUWatcher.Interfaces.DB
+﻿namespace NSUWatcher.Interfaces.DB
 {
     internal interface INsuDbContext
     {
