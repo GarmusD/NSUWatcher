@@ -11,7 +11,14 @@ namespace NSUWatcher.Interfaces
         event EventHandler<SystemStatusChangedEventArgs> SystemStatusChanged;
         event EventHandler<PropertyChangedEventArgs> EntityStatusChanged;
         NsuSystemStatus CurrentStatus { get; }
+        string GetSnapshot(SnapshotType snapshotType);
         IEnumerable<T>? GetEntityData<T>() where T : INSUSysPartDataContract;
+    }
+
+    public enum SnapshotType
+    {
+        Xml,
+        Json
     }
 
     public enum NsuSystemStatus
