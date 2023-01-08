@@ -6,5 +6,6 @@ namespace NSUWatcher.Interfaces.MCUCommands
     {
         IToMcuCircPumpCommands CircPumpCommands { get; }
         IToMcuSystemCommands SystemCommands { get; }
+        IToMcuWoodBoilerCommands WoodBoilerCommands { get; }
     }
 }
