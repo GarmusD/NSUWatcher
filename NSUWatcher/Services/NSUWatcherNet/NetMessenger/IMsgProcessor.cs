@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json.Linq;
 using NSU.Shared.NSUNet;
 
-namespace NSUWatcher.NSUWatcherNet.NetMessenger
+namespace NSUWatcher.Services.NSUWatcherNet.NetMessenger
 {
 #nullable enable
     public interface IMsgProcessor

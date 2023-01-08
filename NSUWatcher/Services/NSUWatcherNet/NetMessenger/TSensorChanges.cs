@@ -2,20 +2,20 @@
 using NSU.Shared.DTO.NsuNet;
 using NSU.Shared.NSUSystemPart;
 
-namespace NSUWatcher.NSUWatcherNet.NetMessenger
+namespace NSUWatcher.Services.NSUWatcherNet.NetMessenger
 {
     public static class TSensorChanges
     {
         public static NetMessage Message(ITempSensorDataContract dataContract, string property)
         {
-            switch (property)
+            return property switch
             {
-                case nameof(TempSensor.Temperature):
-                    return new NetMessage(
-                        TSensorTempChanged.Create(TempSensor.AddrToString(dataContract.SensorID), dataContract.Temperature, dataContract.ReadErrorCount)
-                    );
-                default: return null;
+                nameof(TempSensor.Temperature) => new NetMessage(
+                                        TSensorTempChanged.Create(TempSensor.AddrToString(dataContract.SensorID), dataContract.Temperature, dataContract.ReadErrorCount)
+                                    ),
+                _ => null,
             };
+            ;
         }
     }
 }

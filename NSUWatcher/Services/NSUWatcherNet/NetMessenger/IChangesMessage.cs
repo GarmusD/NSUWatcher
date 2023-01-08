@@ -1,7 +1,7 @@
 ﻿using NSU.Shared.DataContracts;
 using NSU.Shared.NSUNet;
 
-namespace NSUWatcher.NSUWatcherNet.NetMessenger
+namespace NSUWatcher.Services.NSUWatcherNet.NetMessenger
 {
     public interface IChangesMessage
     {

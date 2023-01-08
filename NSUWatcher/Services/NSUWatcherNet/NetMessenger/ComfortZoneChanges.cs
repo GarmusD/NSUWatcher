@@ -2,7 +2,7 @@
 using NSU.Shared.DTO.NsuNet;
 using NSU.Shared.NSUSystemPart;
 
-namespace NSUWatcher.NSUWatcherNet.NetMessenger
+namespace NSUWatcher.Services.NSUWatcherNet.NetMessenger
 {
     public static class ComfortZoneChanges
     {

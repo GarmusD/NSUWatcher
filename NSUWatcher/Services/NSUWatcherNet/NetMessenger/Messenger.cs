@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -7,9 +8,10 @@ using NSU.Shared.DataContracts;
 using NSU.Shared.NSUNet;
 using NSUWatcher.Interfaces;
 using NSUWatcher.Interfaces.NsuUsers;
+using NSUWatcher.Services.NSUWatcherNet.NetMessenger.Processors;
 using System.Collections.Generic;
 
-namespace NSUWatcher.NSUWatcherNet.NetMessenger
+namespace NSUWatcher.Services.NSUWatcherNet.NetMessenger
 {
     public class Messenger
     {
@@ -24,15 +26,17 @@ namespace NSUWatcher.NSUWatcherNet.NetMessenger
 
         private readonly List<IMsgProcessor> _msgProcessors;
 
-        public Messenger(NetServer netServer, INsuUsers nsuUsers, ICmdCenter cmdCenter, INsuSystem nsuSystem, ILoggerFactory loggerFactory)
+        public Messenger(NetServer netServer, INsuUsers nsuUsers, ICmdCenter cmdCenter, INsuSystem nsuSystem, IConfiguration config, ILoggerFactory loggerFactory)
         {
             _netServer = netServer;
             _nsuSystem = nsuSystem;
             _logger = loggerFactory?.CreateLoggerShort<Messenger>() ?? NullLoggerFactory.Instance.CreateLoggerShort<Messenger>();
             _msgProcessors = new List<IMsgProcessor>()
             {
-                new SysMsgProcessor(nsuUsers, loggerFactory),
-                new NsuSysMsgProcessor(cmdCenter)
+                new SysMsgProcessor(nsuSystem, nsuUsers, config, loggerFactory),
+                new NsuSysMsgProcessor(cmdCenter),
+                new CircPumpProcessor(cmdCenter, loggerFactory),
+                new WoodBoilerProcessor(cmdCenter, loggerFactory)
             };
 
             _nsuSystem.EntityStatusChanged += NsuSystem_StatusChanged;
