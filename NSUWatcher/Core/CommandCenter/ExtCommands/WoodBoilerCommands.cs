@@ -45,7 +45,7 @@ namespace NSUWatcher.CommandCenter.ExtCommands
             {
                 Target = JKeys.WoodBoiler.TargetName,
                 Action = JKeys.WoodBoiler.ActionSwitch,
-                Content = _serializer.Serialize( new WoodBoilerSwitchLadomatManual(woodBoilerName) )
+                Content = _serializer.Serialize( new WoodBoilerSwitchManualMode(woodBoilerName, JKeys.WoodBoiler.TargetExhaustFan) )
             };
         }
 
@@ -55,7 +55,7 @@ namespace NSUWatcher.CommandCenter.ExtCommands
             {
                 Target = JKeys.WoodBoiler.TargetName,
                 Action = JKeys.WoodBoiler.ActionSwitch,
-                Content = _serializer.Serialize( new WoodBoilerSwitchExhaustFanManual(woodBoilerName) )
+                Content = _serializer.Serialize( new WoodBoilerSwitchManualMode(woodBoilerName, JKeys.WoodBoiler.TargetLadomat) )
             };
         }
     }
