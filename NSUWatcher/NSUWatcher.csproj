@@ -401,11 +401,13 @@
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\ArduinoV1Commands.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\CircPumpCommands.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\CircPump\ClickedData.cs" />
+    <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\Switch\ClickedData.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\System\EmptyCommand.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\System\SetTimeData.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\TempSensor\SetupTempSensorData.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\WoodBoiler\ActionIkurimasData.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\Data\WoodBoiler\SwitchManualModeData.cs" />
+    <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\SwitchCommands.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\SystemCommands.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ArduinoV1\WoodBoilerCommands.cs" />
     <Compile Include="Core\CommandCenter\ToMcuCommands\Factories\ToMcuCommandFactories.cs" />
@@ -439,6 +441,7 @@
     <Compile Include="Interfaces\IMessageData.cs" />
     <Compile Include="Interfaces\IMcuMessageTransport.cs" />
     <Compile Include="Interfaces\INsuSystem.cs" />
+    <Compile Include="Interfaces\MCUCommands\To\IToMcuSwitchCommands.cs" />
     <Compile Include="Interfaces\MCUCommands\To\IToMcuWoodBoilerCommands.cs" />
     <Compile Include="Interfaces\NsuUsers\INsuUser.cs" />
     <Compile Include="Interfaces\NsuUsers\INsuUsers.cs" />
@@ -540,6 +543,7 @@
     <Compile Include="Services\NSUWatcherNet\NetMessenger\KTypeChanges.cs" />
     <Compile Include="Services\NSUWatcherNet\NetMessenger\Messenger.cs" />
     <Compile Include="Services\NSUWatcherNet\NetMessenger\Processors\NsuSysMsgProcessor.cs" />
+    <Compile Include="Services\NSUWatcherNet\NetMessenger\Processors\SwitchProcessor.cs" />
     <Compile Include="Services\NSUWatcherNet\NetMessenger\Processors\WoodBoilerProcessor.cs" />
     <Compile Include="Services\NSUWatcherNet\NetMessenger\RelayModuleChanges.cs" />
     <Compile Include="Services\NSUWatcherNet\NetMessenger\SwitchChanges.cs" />
