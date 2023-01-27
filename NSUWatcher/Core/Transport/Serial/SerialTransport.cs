@@ -269,9 +269,12 @@ namespace NSUWatcher.Transport.Serial
         {
             if(_serialPort.IsOpen)
             {
+                _logger.LogDebug($"SendingToMCU: {command}");
                 byte[] buffToWrite = Encoding.ASCII.GetBytes($"0 {command}{_commandDelimiter}");
                 _serialPort.Write(buffToWrite, 0, buffToWrite.Length);
+                return;
             }
+            _logger.LogDebug("Send: SerialPort is NOT opened.");
         }
 
         public bool Start()
