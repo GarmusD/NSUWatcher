@@ -36,6 +36,7 @@ namespace NSUWatcher.Services.NSUWatcherNet.NetMessenger
                 new SysMsgProcessor(nsuSystem, nsuUsers, config, loggerFactory),
                 new NsuSysMsgProcessor(cmdCenter),
                 new CircPumpProcessor(cmdCenter, loggerFactory),
+                new SwitchProcessor(cmdCenter, loggerFactory),
                 new WoodBoilerProcessor(cmdCenter, loggerFactory)
             };
 

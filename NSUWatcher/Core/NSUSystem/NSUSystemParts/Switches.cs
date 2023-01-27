@@ -11,6 +11,7 @@ using NSU.Shared.Serializer;
 using Microsoft.Extensions.Logging;
 using System.Collections;
 using NSUWatcher.Interfaces.NsuUsers;
+using NSU.Shared.DTO.ExtCommandContent;
 
 namespace NSUWatcher.NSUSystem.NSUSystemParts
 {
@@ -72,6 +73,17 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         public override IExternalCommandResult ProccessExternalCommand(IExternalCommand command, INsuUser nsuUser, object context)
         {
+            if(command.Action == JKeys.Action.Click) 
+            {
+                SwitchClickContent? switchClickContent = _serializer.Deserialize<SwitchClickContent>(command.Content);
+                if (switchClickContent != null)
+                {
+                    string switchName = switchClickContent.Value.Name;
+                    var @switch = FindSwitch(switchName);
+                    @switch?.OnClicked();
+                }
+                return null;
+            }
             _logger.LogWarning($"ProccessExternalCommand() not implemented for 'Target:{command.Target}' and 'Action:{command.Action}'.");
             return null;
         }
@@ -83,7 +95,13 @@ namespace NSUWatcher.NSUSystem.NSUSystemParts
 
         private void Switch_OnClicked(object sender, EventArgs e)
         {
-            _logger.LogDebug($"Switch_OnClicked(). Name: {(sender as Switch)?.Name}. Sending to Arduino.");
+            if (sender is Switch @switch)
+            {
+                _logger.LogDebug($"Switch_OnClicked(). Name: {@switch.Name}. Sending to Arduino.");
+                _nsuSys.CmdCenter.MCUCommands.ToMcu.SwitchCommands.Clicked(@switch.Name).Send();
+            }
+            else
+                _logger.LogWarning("Switch_OnClicked(): sender is not Switch. sender is '{senderType}'.", sender?.GetType());
         }
 
 #nullable enable

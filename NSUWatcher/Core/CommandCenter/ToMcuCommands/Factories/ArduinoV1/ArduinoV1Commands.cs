@@ -10,9 +10,12 @@ namespace NSUWatcher.Core.CommandCenter.ToMcuCommands.Factories.ArduinoV1
         public IToMcuSystemCommands SystemCommands { get; }
         public IToMcuWoodBoilerCommands WoodBoilerCommands { get; }
 
+        public IToMcuSwitchCommands SwitchCommands { get; }
+
         public ArduinoV1Commands(Action<string> sendAction)
         {
             CircPumpCommands = new CircPumpCommands(sendAction);
+            SwitchCommands= new SwitchCommands(sendAction);
             SystemCommands = new SystemCommands(sendAction);
             WoodBoilerCommands = new WoodBoilerCommands(sendAction);
         }
